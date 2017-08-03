@@ -52,26 +52,26 @@ const SERVER_URL = (process.env.SERVER_URL) ?
   (process.env.SERVER_URL) :
   config.get('serverURL');
 
-var schoolURL = "https://api.data.gov/ed/collegescorecard/v1/schools";
+var schoolURL = "https://api.data.gov/ed/collegescorecard/v1/schools?";
 var api_url = "&api_key=HxDzsIBV5xGSgXes8MdVqYgEGrdc7hWTFj3RStv2";
 
 var object = {
- colleges: 'boston college, purdue university, indiana university',
- price: '$15,000-$45,000',
- major: 'computer',
- location: 1, //0
- SAT: '1350-1450',
- salary: '$65,000-$80,000',
- item1ID: 164924,
- item2ID: 152248,
- item3ID: 151111,
- majorSplit: 'computer',
- minPrice: 15000,
- maxPrice: 45000,
- satMin: 1100, //1350
- satMax: 1550, //1450
- salaryMin: 30000,
- salaryMax: 80000
+  colleges: '',
+  price: '',
+  major: '',
+  location: 0,
+  SAT: '',
+  salary: '',
+  school1: 0,
+  school2: 0,
+  school3: 0,
+  majorSplit: '',
+  minPrice: 0,
+  maxPrice: 0,
+  satMin: 0,
+  satMax: 0,
+  salaryMin: 0,
+  salaryMax: 0
  }
 
 if (!(APP_SECRET && VALIDATION_TOKEN && PAGE_ACCESS_TOKEN && SERVER_URL)) {
@@ -190,6 +190,7 @@ function verifyRequestSignature(req, res, buf) {
     var expectedHash = crypto.createHmac('sha1', APP_SECRET)
                         .update(buf)
                         .digest('hex');
+    console.log(expectedHash);
 
     if (signatureHash != expectedHash) {
       throw new Error("Couldn't validate the request signature.");
@@ -278,8 +279,9 @@ function receivedMessage(event) {
       return;
     }
     if (quickReply.payload === 'DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_LOCATION'){
-      sendTextMessage(senderID, "Where in the US would you like to study?");
-      locationQuickReply(senderID);
+      sendTextMessage(senderID, "Where in the US would you like to study?", function() {
+        locationQuickReply(senderID);
+      });
       return;
     }
     if (quickReply.payload === 'DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_PRICE'){
@@ -287,8 +289,9 @@ function receivedMessage(event) {
       return;
     }
     if (quickReply.payload === '0' || '1' || '2' || '3' || '4' || '5' || '6' || '7' || '8' || '9'){
-      sendTextMessage(senderID, "Got it!");
-      majorQuickReply(senderID);
+      sendTextMessage(senderID, "Got it!", function() {
+        majorQuickReply(senderID);
+      });
       object.location = quickReply.payload;
       return;
     }
@@ -311,35 +314,36 @@ function receivedMessage(event) {
         break;
 
       case 'boston college, purdue university, indiana university':
-        sendTextMessage(senderID, 'Nice! Now, tell me a little bit more about yourself.');
-        interestsQuickReply(senderID);
-        object.colleges = messageText;
-        var schoolList = object.colleges.split(',');
-        var item1 = schoolList[0].split(' ').join('%20');
-        var item2 = schoolList[1].split(' ').join('%20');
-        var item3 = schoolList[2].split(' ').join('%20');
-        var completeUrl1 = schoolURL + '?school.name=' +item1 +'&_fields=id' + api_url
-        var completeUrl2 = schoolURL + '?school.name=' +item2 +'&_fields=id' + api_url
-        var completeUrl3 = schoolURL + '?school.name=' +item3 +'&_fields=id' + api_url
+        sendTextMessage(senderID, 'Nice! Now, tell me a little bit more about yourself.', function() {
+          interestsQuickReply(senderID);
+          });
+          object.colleges = messageText;
+          var schoolList = object.colleges.split(',');
+          var item1 = schoolList[0].split(' ').join('%20');
+          var item2 = schoolList[1].split(' ').join('%20');
+          var item3 = schoolList[2].split(' ').join('%20');
+          var completeUrl1 = schoolURL + 'school.name=' +item1 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url
+          var completeUrl2 = schoolURL + 'school.name=' +item2 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url
+          var completeUrl3 = schoolURL + 'school.name=' +item3 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url
 
         axios.get(completeUrl1)
         .then(function(response) {
           console.log("assinging");
-          object.item1ID = response.data.results[0].id;
+          object.school1 = response.data.results[0];
         })
         .catch(function(error) {
           console.log("error",error);
         })
         axios.get(completeUrl2)
         .then(function(response) {
-          object.item2ID = response.data.results[0].id;
+          object.school2 = response.data.results[0];
         })
         .catch(function(error) {
           console.log("error",error);
         })
         axios.get(completeUrl3)
         .then(function(response) {
-          object.item3ID = response.data.results[0].id;
+          object.school3 = response.data.results[0];
         })
         .catch(function(error) {
           console.log("error",error);
@@ -363,7 +367,7 @@ function receivedMessage(event) {
         break;
 
       case 'axios':
-        sampleAxios(senderID, object);
+        dbQuery(senderID, object);
         break;
 
       case 'button':
@@ -398,9 +402,11 @@ function receivedMessage(event) {
         sendAccountLinking(senderID);
         break;
 
-      case '$15,000-$45,000':
-        sendTextMessage(senderID, "Noted!");
-        pricesQuickReply(senderID);
+      case '$10,000-$70,000':
+        sendTextMessage(senderID, "Noted!", function() {
+            pricesQuickReply(senderID)
+        });
+
         object.price = messageText;
         var priceSplit = object.price.split('-');
         object.minPrice = priceSplit[0].split(',').join('').split('$').join('');
@@ -413,7 +419,7 @@ function receivedMessage(event) {
         object.majorSplit = object.major.split(' ').join('%20');
         break;
 
-      case '1350-1450':
+      case '1100-1550':
         sendTextMessage(senderID, 'Last thing. Considering the major you told me, what is the ideal range for your projected salary (min-max)?');
         object.SAT = messageText;
         var satSplit = object.SAT.split('-');
@@ -421,14 +427,15 @@ function receivedMessage(event) {
         object.satMax = satSplit[1];
         break;
 
-      case '$65,000-$80,000':
-        sendTextMessage(senderID, 'Got it! We will generate a list of schools that match your interests:');
-        // sendCollegeList(senderID);
-        object.salary = messageText;
-        var salarySplit = object.salary.split('-');
-        object.salaryMin = salarySplit[0].split(',').join('').split('$').join('');
-        object.salaryMax = salarySplit[1].split(',').join('').split('$').join('');
-        sampleAxios(senderID, object);
+      case '$30,000-$80,000':
+        sendTextMessage(senderID, 'Got it! I will generate a list of schools that match your interests, including the three you had mentioned earlier:', function() {
+          // sendCollegeList(senderID);
+          object.salary = messageText;
+          var salarySplit = object.salary.split('-');
+          object.salaryMin = salarySplit[0].split(',').join('').split('$').join('');
+          object.salaryMax = salarySplit[1].split(',').join('').split('$').join('');
+          dbQuery(senderID, object);
+        });
         break;
 
       default:
@@ -490,9 +497,10 @@ function receivedPostback(event) {
   // When a postback is called, we'll send a message back to the sender to
   // let them know it was successful
   if(payload === "GET_STARTED_PAYLOAD"){
-    sendTextMessage(senderID, "Hi welcome to Strive! I am here to guide you with your search for the perfect college. Let's begin! ");
-    sendTextMessage(senderID, "Tell me 3 colleges you are interested in already.");
-  }else{
+    sendTextMessage(senderID, "Hi welcome to Strive! I am here to guide you with your search for the perfect college. Let's begin! ", function() {
+      sendTextMessage(senderID, "Tell me 3 colleges you are interested in already.");
+    });
+    }else{
     sendTextMessage(senderID, "Postback called");
   }
 }
@@ -649,7 +657,7 @@ function sendFileMessage(recipientId) {
  * Send a text message using the Send API.
  *
  */
-function sendTextMessage(recipientId, messageText) {
+function sendTextMessage(recipientId, messageText, cb) {
 
 
   var messageData = {
@@ -662,7 +670,7 @@ function sendTextMessage(recipientId, messageText) {
     }
   };
 
-  callSendAPI(messageData);
+  callSendAPI(messageData, cb);
 }
 
 /*
@@ -703,19 +711,53 @@ function sendRegionButton1(recipientId) {
 }
 
 
-function sampleAxios(recipientId, object) {
+function dbQuery(recipientId, object) {
   console.log(object);
-  var idURL = schoolURL + '?id=' + object.item1ID + ',' + object.item2ID + ',' + object.item3ID;
+  var idURL = schoolURL + '?id=' + object.school1 + ',' + object.school2 + ',' + object.school3;
   var majorUrl = '&2014.academics.program_percentage.' + object.majorSplit + '__range=0..1';
   var locationUrl = '&school.region_id=' + object.location;
   var priceUrl = '&2014.cost.attendance.academic_year__range=' + object.minPrice + '..' + object.maxPrice;
   var SATurl = '&2014.admissions.sat_scores.average.overall__range=' + object.satMin + '..' + object.satMax;
   var salaryUrl = '&2011.earnings.6_yrs_after_entry.working_not_enrolled.mean_earnings__range=' + object.salaryMin + '..' + object.salaryMax;
-  var totalUrl = idURL + majorUrl + locationUrl + priceUrl + SATurl + salaryUrl;
+  var totalUrl = schoolURL+ majorUrl + locationUrl + priceUrl + SATurl + salaryUrl;
   axios.get( totalUrl + '&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url)
   .then(function(response) {
     console.log("response", response.data);
 
+    var schoolElements = [object.school1, object.school2, object.school3];
+    var elements = [];
+    for (var i = 0; i < 3; i++) {
+      var school = schoolElements[i];
+      elements.push({
+        title: school['school.name'],
+        subtitle: school['school.city'] + ',' + school['school.state'] + ',' + school['school.zip'],
+        buttons: [{
+          type: "web_url",
+          url: school['school.school_url'],
+          title: "School link"
+        }, {
+          type: "web_url",
+          url: school['school.price_calculator_url'],
+          title: "Price Calculator"
+        }],
+      })
+    }
+    for (var i = 0; i < Math.min(7, response.data.results.length); i++) {
+      var dbSchool = response.data.results[i];
+      elements.push({
+        title: dbSchool['school.name'],
+        subtitle: dbSchool['school.city'] + ',' + dbSchool['school.state'] + ',' + dbSchool['school.zip'],
+        buttons: [{
+          type: "web_url",
+          url: dbSchool['school.school_url'],
+          title: "School link"
+        }, {
+          type: "web_url",
+          url: dbSchool['school.price_calculator_url'],
+          title: "Price Calculator"
+        }],
+      })
+    }
       var messageData = {
           recipient: {
             id: recipientId
@@ -725,24 +767,13 @@ function sampleAxios(recipientId, object) {
               type: "template",
               payload: {
                 template_type: "generic",
-                elements: [{
-                  title: response.data.results['school.name'],
-                  subtitle: response.data.results['school.city'] + ',' + response.data.results['school.state'] + ',' + response.data.results['school.zip'],
-                  buttons: [{
-                    type: "web_url",
-                    url: response.data.results['school.school_url'],
-                    title: "School link"
-                  }, {
-                    type: "web_url",
-                    url: response.data.results['school.price_calculator_url'],
-                    title: "Price Calculator"
-                  }],
-                }]
+                elements: elements
               }
             }
           }
         }
-        console.log("messageData",messageData);
+
+        console.log("messageData",JSON.stringify(messageData, null, 4));
         callSendAPI(messageData);
     })
     .catch(function(error) {
@@ -1098,7 +1129,7 @@ function sendAccountLinking(recipientId) {
  * get the message id in a response
  *
  */
-function callSendAPI(messageData) {
+function callSendAPI(messageData, cb) {
   request({
     uri: 'https://graph.facebook.com/v2.6/me/messages',
     qs: { access_token: PAGE_ACCESS_TOKEN },
@@ -1114,8 +1145,11 @@ function callSendAPI(messageData) {
         console.log("Successfully sent message with id %s to recipient %s",
           messageId, recipientId);
       } else {
-      console.log("Successfully called Send API for recipient %s",
-        recipientId);
+        console.log("Successfully called Send API for recipient %s",
+          recipientId);
+      }
+      if (cb) {
+        cb();
       }
     } else {
       console.error("Failed calling Send API", response.statusCode, response.statusMessage, body.error);
