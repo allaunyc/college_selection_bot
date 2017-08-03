@@ -68,9 +68,9 @@ var object = {
  majorSplit: 'computer',
  minPrice: 15000,
  maxPrice: 45000,
- satMin: 0.7, //1350
- satMax: 1, //1450
- salaryMin: 65000,
+ satMin: 1100, //1350
+ satMax: 1550, //1450
+ salaryMin: 30000,
  salaryMax: 80000
  }
 
