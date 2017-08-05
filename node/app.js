@@ -323,6 +323,14 @@ function receivedMessage(event) {
           foundUser.data.major = data.result.parameters['major'];
         } else if (foundUser.currentContext === 'add-location') {
           foundUser.data.location = data.result.parameters['geo-state-us'];
+        } else if (foundUser.currentContext === 'add-price') {
+          foundUser.data.location = data.result.parameters['geo-state-us']; // CORRECT PARAM
+        } else if (foundUser.currentContext === 'add-colleges') {
+          foundUser.data.location = data.result.parameters['geo-state-us']; //CORRECT PARAM
+        } else if (foundUser.currentContext === 'add-SAT-or-ACT') {
+          foundUser.data.location = data.result.parameters['geo-state-us']; //CORRECT PARAM
+        } else if (foundUser.currentContext === 'add-salary') {
+          foundUser.data.location = data.result.parameters['geo-state-us']; //CORRECT PARAM
         }
         var next = getNextState(foundUser);
         if (next === null) {
@@ -597,6 +605,14 @@ function getPrompt(state) {
     return 'What major are you interested in pursuing?';
   } else if (state === 'add-location') {
     return 'Where in the U.S would you like to study?';
+  } else if (state === 'add-price') {
+    return 'What is your price range for college tuition per year? (min-max )';
+  } else if (state === 'add-colleges') {
+    return 'What is your price range for college tuition per year? (min-max )'; //FIX COLLEGES
+  } else if (state === 'add-SAT-or-ACT') {
+    return 'What is your price range for college tuition per year? (min-max )'; //FIX SCORES
+  } else if (state === 'add-salary') {
+    return 'What is your price range for college tuition per year? (min-max )'; //FIX TUITION
   } else {
     return 'You are done';
   }
@@ -614,6 +630,14 @@ function getNextState(user) {
         return 'add-major';
       } else if (i === 1) {
         return 'add-location';
+      } else if (i === 2) {
+        return 'add-price';
+      } else if (i === 3) {
+        return 'add-colleges';
+      } else if (i === 4) {
+        return 'add-SAT-or-ACT';
+      } else if (i === 5) {
+        return 'add-salary';
       }
     }
   }

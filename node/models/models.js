@@ -9,9 +9,9 @@ var userSchema = new Schema({
     major: String,
     location: String,
     price: Number
-    // colleges: Array,
-    // scores: Array,
-    // salary: Number
+    colleges: Array,
+    scores: Array,
+    salary: Number
   },
   currentContext: String,
   completed: Boolean,
