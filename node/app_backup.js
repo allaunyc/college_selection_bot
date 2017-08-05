@@ -17,11 +17,9 @@ const
   express = require('express'),
   https = require('https'),
   request = require('request'),
-  axios = require('axios'),
-  models = require('./models/models');
+  axios = require('axios');
 
 var app = express();
-var User = models.User;
 app.set('port', process.env.PORT || 5000);
 app.set('view engine', 'ejs');
 app.use(bodyParser.json({ verify: verifyRequestSignature }));
@@ -304,53 +302,13 @@ function receivedMessage(event) {
     return;
   }
 
-  var foundUser;
   if (messageText) {
-    User.findOne({senderId: senderID})
-    .then(function(temp){
-      foundUser = temp;
-      var userContext = foundUser.currentContext;
-      return sendQuery(messageText, senderID, userContext);
-    })
-    .then(({ data }) => {
-      console.log('APIAI', data);
-      if (data.result.action === 'input.unknown' || data.result.actionIncomplete) {
-        sendTextMessage(senderID, data.result.fulfillment.speech);
-        // ASK JAY HOW TO INVOKE FUNCTION AGAIN UNTIL ACTIONIMCOMPLETE IS FALSE
-        throw new Error();
-      } else {
-        if (foundUser.currentContext === 'add-major') {
-          foundUser.data.major = data.result.parameters['major'];
-        } else if (foundUser.currentContext === 'add-location') {
-          foundUser.data.location = data.result.parameters['geo-state-us'];
-        }
-        var next = getNextState(foundUser);
-        if (next === null) {
-          foundUser.completed = true;
-        }
-        foundUser.currentContext = next;
-        return foundUser.save();
-      }
-    })
-    .then(function(foundUser) {
-      sendTextMessage(senderID, getPrompt(foundUser.currentContext));
-    })
-    .catch(function(err) {
-      // do nothing
-      // console.log(err);
-    })
-
-
-
   //   var masterList= [];
   //   masterList.push(messageText);
 
     // If we receive a text message, check to see if it matches any special
     // keywords and send back the corresponding example. Otherwise, just echo
     // the text we received.
-
-
-    /*
     switch (messageText) {
       case 'image':
         sendImageMessage(senderID);
@@ -483,10 +441,7 @@ function receivedMessage(event) {
 
       default:
         sendTextMessage(senderID, messageText);
-    }*/
-
-
-
+    }
   } else if (messageAttachments) {
     sendTextMessage(senderID, "Message with attachment received");
   }
@@ -530,8 +485,8 @@ function receivedPostback(event) {
   var senderID = event.sender.id;
   var recipientID = event.recipient.id;
   var timeOfPostback = event.timestamp;
-  // console.log("LOOK HEREEE");
-  // console.log(event.postback);
+  console.log("LOOK HEREEE");
+  console.log(event.postback);
 
   // The 'payload' param is a developer-defined field which is set in a postback
   // button for Structured Messages.
@@ -544,80 +499,11 @@ function receivedPostback(event) {
   // let them know it was successful
   if(payload === "GET_STARTED_PAYLOAD"){
     sendTextMessage(senderID, "Hi welcome to Strive! I am here to guide you with your search for the perfect college. Let's begin! ", function() {
-
-      User.findOne({ senderId: senderID })
-      .then(function(user){
-        if (user){
-          user.data = {};
-        } else {
-          user = new User({
-            data: {},
-            completed: false,
-            senderId: senderID
-          });
-        }
-        return user.save();
-      })
-      .then(function(savedUser) {
-        var next = getNextState(savedUser);
-        savedUser.currentContext = next;
-        return savedUser.save();
-      })
-      .then(function(savedUser) {
-        sendTextMessage(senderID, getPrompt(savedUser.currentContext));
-      });
+      sendTextMessage(senderID, "Tell me 3 colleges you are interested in already.");
     });
-  } else{
+    }else{
     sendTextMessage(senderID, "Postback called");
   }
-}
-
-function sendQuery(message, senderID, context) {
-  console.log(context);
-  return axios.post('https://api.api.ai/api/query?v=20150910', {
-    lang: 'en',
-    timezone: new Date(),
-    query: message,
-    sessionId: senderID,
-    contexts: [
-      { name: context }
-    ],
-    resetContexts: true
-  },
-  {
-    headers: {
-      Authorization: `Bearer ${process.env.API_AI_TOKEN}`
-    }
-  });
-}
-
-// TODO: randomize prompt
-function getPrompt(state) {
-  if (state === 'add-major') {
-    return 'What major are you interested in pursuing?';
-  } else if (state === 'add-location') {
-    return 'Where in the U.S would you like to study?';
-  } else {
-    return 'You are done';
-  }
-}
-
-
-function getNextState(user) {
-  if (user.completed) {
-    return null;
-  }
-  var state = [user.data.major, user.data.location];
-  for (var i = 0; i < state.length; i++) {
-    if (!state[i]) {
-      if (i === 0) {
-        return 'add-major';
-      } else if (i === 1) {
-        return 'add-location';
-      }
-    }
-  }
-  return null;
 }
 
 /*
@@ -825,7 +711,7 @@ function sendRegionButton1(recipientId) {
 
 
 function dbQuery(recipientId, object) {
-  // console.log(object);
+  console.log(object);
   var idURL = schoolURL + '?id=' + object.school1 + ',' + object.school2 + ',' + object.school3;
   var majorUrl = '&2014.academics.program_percentage.' + object.majorSplit + '__range=0..1';
   var locationUrl = '&school.region_id=' + object.location;
@@ -886,7 +772,7 @@ function dbQuery(recipientId, object) {
           }
         }
 
-        // console.log("messageData",JSON.stringify(messageData, null, 4));
+        console.log("messageData",JSON.stringify(messageData, null, 4));
         callSendAPI(messageData);
     })
     .catch(function(error) {
@@ -1252,9 +1138,9 @@ function callSendAPI(messageData, cb) {
   }, function (error, response, body) {
     if (!error && response.statusCode == 200) {
 
-      // console.log("This is the response", response);
-      // console.log("This is the BODY:", body);
-      // console.log("BOT TEXT IS THIS:", messageData.message);
+      console.log("This is the response", response);
+      console.log("This is the BODY:", body);
+      console.log("BOT TEXT IS THIS:", messageData.message);
       var recipientId = body.recipient_id;
       var messageId = body.message_id;
 
