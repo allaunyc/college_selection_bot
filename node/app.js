@@ -274,8 +274,8 @@ function receivedMessage(event) {
     console.log("Quick reply for message %s with payload %s",
       messageId, quickReplyPayload);
 
-    console.log(quickReply);
-    console.log("quickreply.payload", quickReplyPayload);
+    // console.log(quickReply);
+    // console.log("quickreply.payload", quickReplyPayload);
 
     if (quickReply.payload === 'DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_MAJOR'){
       sendTextMessage(senderID, "What major are you interested in pursuing?");
@@ -316,32 +316,54 @@ function receivedMessage(event) {
       console.log('APIAI', data);
       if (data.result.action === 'input.unknown' || data.result.actionIncomplete) {
         sendTextMessage(senderID, data.result.fulfillment.speech);
-        // ASK JAY HOW TO INVOKE FUNCTION AGAIN UNTIL ACTIONIMCOMPLETE IS FALSE
         throw new Error();
       } else {
+        console.log(foundUser.currentContext);
+        console.log(data.result.parameters, "params");
         if (foundUser.currentContext === 'add-major') {
           foundUser.data.major = data.result.parameters['major'];
+          console.log("inside major",foundUser.data.major);
         } else if (foundUser.currentContext === 'add-location') {
-          foundUser.data.location = data.result.parameters['geo-state-us'];
+          if(data.result.parameters['geo-city']){
+            foundUser.data.location = data.result.parameters['geo-city'];
+          }if(data.result.parameters['region1']){
+            foundUser.data.location = data.result.parameters['region1'];
+          }
         } else if (foundUser.currentContext === 'add-price') {
-          foundUser.data.location = data.result.parameters['geo-state-us']; // CORRECT PARAM
-        } else if (foundUser.currentContext === 'add-colleges') {
-          foundUser.data.location = data.result.parameters['geo-state-us']; //CORRECT PARAM
+          if(typeof data.result.parameters['price-min'] === 'object'){
+            console.log('obj min');
+            foundUser.data.minPrice = data.result.parameters['price-min'].amount;
+          } else {
+            foundUser.data.minPrice = data.result.parameters['price-min'].replace(',', '');
+          }
+
+          if(typeof data.result.parameters['price-max'] === 'object'){
+            console.log('obj max');
+            foundUser.data.maxPrice = data.result.parameters['price-max'].amount;
+          }else{
+            foundUser.data.maxPrice = data.result.parameters['price-max'].replace(',', '');
+          }
+           // CORRECT PARAM
+        } else if (foundUser.currentContext === 'add-college') {
+          foundUser.data.colleges = data.result.parameters['college']; //CORRECT PARAM
         } else if (foundUser.currentContext === 'add-SAT-or-ACT') {
-          foundUser.data.location = data.result.parameters['geo-state-us']; //CORRECT PARAM
+          foundUser.data.minScore = data.result.parameters['act-min']; //CORRECT PARAM
+          foundUser.data.maxScore = data.result.parameters['act-max']; //CORRECT PARAM
         } else if (foundUser.currentContext === 'add-salary') {
-          foundUser.data.location = data.result.parameters['geo-state-us']; //CORRECT PARAM
+          foundUser.data.salary = data.result.parameters['salary-min', 'salary-max']; //CORRECT PARAM
         }
         var next = getNextState(foundUser);
         if (next === null) {
           foundUser.completed = true;
         }
         foundUser.currentContext = next;
-        return foundUser.save();
+        console.log(foundUser.currentContext);
+        foundUser.save();
+        return data;
       }
     })
-    .then(function(foundUser) {
-      sendTextMessage(senderID, getPrompt(foundUser.currentContext));
+    .then(function(data) {
+      sendTextMessage(senderID, data.result.fulfillment.speech);
     })
     .catch(function(err) {
       // do nothing
@@ -580,8 +602,9 @@ function receivedPostback(event) {
   }
 }
 
+// Sends message with API.AI w/ user message content and context it was sent in
 function sendQuery(message, senderID, context) {
-  console.log(context);
+  console.log('SENDQUERY', context);
   return axios.post('https://api.api.ai/api/query?v=20150910', {
     lang: 'en',
     timezone: new Date(),
@@ -604,27 +627,28 @@ function getPrompt(state) {
   if (state === 'add-major') {
     return 'What major are you interested in pursuing?';
   } else if (state === 'add-location') {
-    return 'Where in the U.S would you like to study?';
+    return 'Where in the U.S would you like to study (city or state)?';
   } else if (state === 'add-price') {
     return 'What is your price range for college tuition per year? (min-max )';
-  } else if (state === 'add-colleges') {
-    return 'What is your price range for college tuition per year? (min-max )'; //FIX COLLEGES
+  } else if (state === 'add-college') {
+    return 'What are three colleges that you might be interested in already?'; //FIX COLLEGES
   } else if (state === 'add-SAT-or-ACT') {
-    return 'What is your price range for college tuition per year? (min-max )'; //FIX SCORES
+    return 'Now, can you tell me your highest score range on either the SAT or ACT (+/- 100)?'; //FIX SCORES
   } else if (state === 'add-salary') {
-    return 'What is your price range for college tuition per year? (min-max )'; //FIX TUITION
+    return 'Considering the major you told me, what would be your ideal projected salary range?'; //FIX TUITION
   } else {
     return 'You are done';
   }
 }
 
-
+// Assigns new state of context, until it has gone through all the required states
 function getNextState(user) {
   if (user.completed) {
     return null;
   }
-  var state = [user.data.major, user.data.location];
+  var state = [user.data.major, user.data.location, user.data.minPrice, user.data.minScore, user.data.colleges, user.data.salary];
   for (var i = 0; i < state.length; i++) {
+    // IF A KEY HAS NOT BEEN ASSIGNED A VALUE YET
     if (!state[i]) {
       if (i === 0) {
         return 'add-major';
@@ -633,9 +657,9 @@ function getNextState(user) {
       } else if (i === 2) {
         return 'add-price';
       } else if (i === 3) {
-        return 'add-colleges';
-      } else if (i === 4) {
         return 'add-SAT-or-ACT';
+      } else if (i === 4) {
+        return 'add-college';
       } else if (i === 5) {
         return 'add-salary';
       }
