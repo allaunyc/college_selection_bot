@@ -8,7 +8,7 @@ var userSchema = new Schema({
   data: {
     major: String,
     location: String,
-    price: Number
+    price: Number,
     colleges: Array,
     scores: Array,
     salary: Number
