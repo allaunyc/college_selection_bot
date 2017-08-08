@@ -886,6 +886,7 @@ function sendRegionButton1(recipientId) {
 
 function dbQuery(recipientId, object) {
   // console.log(object);
+  var idURL = schoolURL + '?id=' + object.school1 + ',' + object.school2 + ',' + object.school3;
   var majorUrl = '&2014.academics.program_percentage.' + object.majorSplit + '__range=0..1';
   var locationUrl = '&school.region_id=' + object.location;
   var priceUrl = '&2014.cost.attendance.academic_year__range=' + object.minPrice + '..' + object.maxPrice;
