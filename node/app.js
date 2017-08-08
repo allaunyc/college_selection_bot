@@ -350,7 +350,19 @@ function receivedMessage(event) {
           foundUser.data.minScore = data.result.parameters['act-min']; //CORRECT PARAM
           foundUser.data.maxScore = data.result.parameters['act-max']; //CORRECT PARAM
         } else if (foundUser.currentContext === 'add-salary') {
-          foundUser.data.salary = data.result.parameters['salary-min', 'salary-max']; //CORRECT PARAM
+          if(typeof data.result.parameters['salary-min'] === 'object'){
+            console.log('obj min');
+            foundUser.data.minSalary = data.result.parameters['salary-min'].amount; //CORRECT PARAM
+          } else {
+            foundUser.data.minSalary = data.result.parameters['salary-min'].replace(',', ''); //CORRECT PARAM
+          }
+
+          if(typeof data.result.parameters['salary-max'] === 'object'){
+            console.log('obj max');
+            foundUser.data.maxSalary = data.result.parameters['salary-max'].amount;
+          }else{
+            foundUser.data.maxSalary = data.result.parameters['salary-max'].replace(',', '');
+          }
         }
         var next = getNextState(foundUser);
         if (next === null) {
@@ -874,7 +886,6 @@ function sendRegionButton1(recipientId) {
 
 function dbQuery(recipientId, object) {
   // console.log(object);
-  var idURL = schoolURL + '?id=' + object.school1 + ',' + object.school2 + ',' + object.school3;
   var majorUrl = '&2014.academics.program_percentage.' + object.majorSplit + '__range=0..1';
   var locationUrl = '&school.region_id=' + object.location;
   var priceUrl = '&2014.cost.attendance.academic_year__range=' + object.minPrice + '..' + object.maxPrice;
