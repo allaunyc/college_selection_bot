@@ -8,10 +8,13 @@ var userSchema = new Schema({
   data: {
     major: String,
     location: String,
-    price: Number
-    colleges: Array,
-    scores: Array,
-    salary: Number
+    minPrice: Number,
+    maxPrice: Number,
+    colleges: String,
+    minScore: Number,
+    maxScore: Number,
+    minSalary: Number,
+    maxSalary: Number
   },
   currentContext: String,
   completed: Boolean,
