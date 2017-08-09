@@ -11,6 +11,7 @@ var userSchema = new Schema({
     minPrice: Number,
     maxPrice: Number,
     colleges: String,
+    scoreType: String,
     minScore: Number,
     maxScore: Number,
     minSalary: Number,

@@ -57,29 +57,55 @@ const SERVER_URL = (process.env.SERVER_URL) ?
 var schoolURL = "https://api.data.gov/ed/collegescorecard/v1/schools?";
 var api_url = "&api_key=HxDzsIBV5xGSgXes8MdVqYgEGrdc7hWTFj3RStv2";
 
-var object = {
-  colleges: '',
-  price: '',
-  major: '',
-  location: 0,
-  SAT: '',
-  salary: '',
-  school1: 0,
-  school2: 0,
-  school3: 0,
-  majorSplit: '',
-  minPrice: 0,
-  maxPrice: 0,
-  satMin: 0,
-  satMax: 0,
-  salaryMin: 0,
-  salaryMax: 0
- }
 
 if (!(APP_SECRET && VALIDATION_TOKEN && PAGE_ACCESS_TOKEN && SERVER_URL)) {
   console.error("Missing config values");
   process.exit(1);
 }
+
+
+var dbMajors = [
+  {agriculture: []},
+  {resources: ['environmental science', 'meteorology']},
+  {architecture: []},
+  {ethnic_cultural_gender: ['ethnic studies']},
+  {communication: ['human development']},
+  {communications_technology: ['communications technology', 'telecommunications']},
+  {computer: ['computer science', 'information science']},
+  {personal_culinary: ['culinary arts']},
+  {education: []},
+  {engineering: []},
+  {engineering_technology: []},
+  {language: []},
+  {family_consumer_science: ['family consumer science', 'rehabilitation services', 'social work', 'speech pathology and audiology']},
+  {legal: ['law', 'crime, law, and justice']},
+  {english: []},
+  {humanities: []},
+  {library: []},
+  {biological: ['biology', 'animal science', 'biochemistry', 'biotechnology', 'marine biology', 'physiology']},
+  {mathematics: ['finance', 'accounting', 'actuarial science']},
+  {public_administration_social_service: ['public administration']},
+  {military: ['military science']},
+  {multidiscipline: ['multidisciplinary science']},
+  {parks_recreation_fitness: ['fitness']},
+  {philosophy_religious: ['philosophy']},
+  {theology_religious_vocation: ['theology']},
+  {physical_science: ['physical science']},
+  {science_technology: ['science technology']},
+  {psychology: []},
+  {security_law_enforcement: ['law enforcement']},
+  {social_science: ['social science','political science', 'economics', 'anthropology', 'archaeology', 'geoscience', 'geography', 'hospitality', 'sociology']},
+  {construction: []},
+  {mechanic_repair_technology: ['mechanics']},
+  {precision_production: ['precision production']},
+  {transportation: []},
+  {visual_performing: ['studio art']},
+  {health: ['nursing', 'pre-medicine']},
+  {business_marketing: ['business', 'marketing']},
+  {history: []}
+
+]
+
 
 /*
  * Use your own validation token. Check that the token used in the Webhook
@@ -273,34 +299,6 @@ function receivedMessage(event) {
     var quickReplyPayload = quickReply.payload;
     console.log("Quick reply for message %s with payload %s",
       messageId, quickReplyPayload);
-
-    // console.log(quickReply);
-    // console.log("quickreply.payload", quickReplyPayload);
-
-    if (quickReply.payload === 'DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_MAJOR'){
-      sendTextMessage(senderID, "What major are you interested in pursuing?");
-      return;
-    }
-    if (quickReply.payload === 'DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_LOCATION'){
-      sendTextMessage(senderID, "Where in the US would you like to study?", function() {
-        locationQuickReply(senderID);
-      });
-      return;
-    }
-    if (quickReply.payload === 'DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_PRICE'){
-      sendTextMessage(senderID, "What is your price range for college tuition per year? (min-max )");
-      return;
-    }
-    if (quickReply.payload === '0' || '1' || '2' || '3' || '4' || '5' || '6' || '7' || '8' || '9'){
-      sendTextMessage(senderID, "Got it!", function() {
-        majorQuickReply(senderID);
-      });
-      object.location = quickReply.payload;
-      return;
-    }
-    // receivedPostback(event);
-
-    sendTextMessage(senderID, "quickReply tapped");
     return;
   }
 
@@ -324,31 +322,43 @@ function receivedMessage(event) {
           foundUser.data.major = data.result.parameters['major'];
           console.log("inside major",foundUser.data.major);
         } else if (foundUser.currentContext === 'add-location') {
-          if(data.result.parameters['geo-city']){
-            foundUser.data.location = data.result.parameters['geo-city'];
-          }if(data.result.parameters['region1']){
-            foundUser.data.location = data.result.parameters['region1'];
-          }
+            if(data.result.parameters['geo-city']){
+              foundUser.data.location = data.result.parameters['geo-city'];
+            }
+            if(data.result.parameters['region1']){
+              foundUser.data.location = data.result.parameters['region1'];
+            }
         } else if (foundUser.currentContext === 'add-price') {
-          if(typeof data.result.parameters['price-min'] === 'object'){
-            console.log('obj min');
-            foundUser.data.minPrice = data.result.parameters['price-min'].amount;
-          } else {
+            if(typeof data.result.parameters['price-min'] === 'object'){
+              console.log('obj min');
+              foundUser.data.minPrice = data.result.parameters['price-min'].amount;
+            } else {
             foundUser.data.minPrice = data.result.parameters['price-min'].replace(',', '');
-          }
+            }
 
-          if(typeof data.result.parameters['price-max'] === 'object'){
-            console.log('obj max');
-            foundUser.data.maxPrice = data.result.parameters['price-max'].amount;
-          }else{
-            foundUser.data.maxPrice = data.result.parameters['price-max'].replace(',', '');
-          }
+            if(typeof data.result.parameters['price-max'] === 'object'){
+              console.log('obj max');
+              foundUser.data.maxPrice = data.result.parameters['price-max'].amount;
+            }else{
+              foundUser.data.maxPrice = data.result.parameters['price-max'].replace(',', '');
+            }
            // CORRECT PARAM
         } else if (foundUser.currentContext === 'add-college') {
-          foundUser.data.colleges = data.result.parameters['college']; //CORRECT PARAM
+          foundUser.data.colleges = data.result.parameters['college'];
+
+          console.log(foundUser.data.parameters.college);
+          console.log("look here for college string", foundUser.data.parameters.college[0], foundUser.data.parameters.college[1], foundUser.data.parameters.college[2]);
         } else if (foundUser.currentContext === 'add-SAT-or-ACT') {
-          foundUser.data.minScore = data.result.parameters['act-min']; //CORRECT PARAM
-          foundUser.data.maxScore = data.result.parameters['act-max']; //CORRECT PARAM
+          if (data.result.parameters['act-min'] && data.result.parameters['act-max']){
+            foundUser.data.minScore = data.result.parameters['act-min'];
+            foundUser.data.maxScore = data.result.parameters['act-max'];
+            foundUser.data.scoreType = "act";
+
+          }else if (data.result.parameters['sat-min'] && data.result.parameters['sat-max']){
+            foundUser.data.minScore = data.result.parameters['sat-min'];
+            foundUser.data.maxScore = data.result.parameters['sat-max'];
+            foundUser.data.scoreType = "sat";
+          }
         } else if (foundUser.currentContext === 'add-salary') {
           if(typeof data.result.parameters['salary-min'] === 'object'){
             console.log('obj min');
@@ -367,6 +377,8 @@ function receivedMessage(event) {
         var next = getNextState(foundUser);
         if (next === null) {
           foundUser.completed = true;
+          dbQuery(recipientID, foundUser, obj);
+          return;
         }
         foundUser.currentContext = next;
         console.log(foundUser.currentContext);
@@ -375,160 +387,16 @@ function receivedMessage(event) {
       }
     })
     .then(function(data) {
+      if(data.result.parameters['major']){
+        sendTextMessage(senderID, (data.result.fulfillment.speech));
+        return;
+      }
       sendTextMessage(senderID, data.result.fulfillment.speech);
     })
     .catch(function(err) {
       // do nothing
       // console.log(err);
     })
-
-
-
-  //   var masterList= [];
-  //   masterList.push(messageText);
-
-    // If we receive a text message, check to see if it matches any special
-    // keywords and send back the corresponding example. Otherwise, just echo
-    // the text we received.
-
-
-    /*
-    switch (messageText) {
-      case 'image':
-        sendImageMessage(senderID);
-        break;
-
-      case 'boston college, purdue university, indiana university':
-        sendTextMessage(senderID, 'Nice! Now, tell me a little bit more about yourself.', function() {
-          interestsQuickReply(senderID);
-          });
-          object.colleges = messageText;
-          var schoolList = object.colleges.split(',');
-          var item1 = schoolList[0].split(' ').join('%20');
-          var item2 = schoolList[1].split(' ').join('%20');
-          var item3 = schoolList[2].split(' ').join('%20');
-          var completeUrl1 = schoolURL + 'school.name=' +item1 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url
-          var completeUrl2 = schoolURL + 'school.name=' +item2 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url
-          var completeUrl3 = schoolURL + 'school.name=' +item3 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url
-
-        axios.get(completeUrl1)
-        .then(function(response) {
-          console.log("assinging");
-          object.school1 = response.data.results[0];
-        })
-        .catch(function(error) {
-          console.log("error",error);
-        })
-        axios.get(completeUrl2)
-        .then(function(response) {
-          object.school2 = response.data.results[0];
-        })
-        .catch(function(error) {
-          console.log("error",error);
-        })
-        axios.get(completeUrl3)
-        .then(function(response) {
-          object.school3 = response.data.results[0];
-        })
-        .catch(function(error) {
-          console.log("error",error);
-        })
-        break;
-
-      case 'gif':
-        sendGifMessage(senderID);
-        break;
-
-      case 'audio':
-        sendAudioMessage(senderID);
-        break;
-
-      case 'video':
-        sendVideoMessage(senderID);
-        break;
-
-      case 'file':
-        sendFileMessage(senderID);
-        break;
-
-      case 'axios':
-        dbQuery(senderID, object);
-        break;
-
-      case 'button':
-        sendRegionButton1(senderID);
-        break;
-
-      case 'generic':
-        sendGenericMessage(senderID);
-        break;
-
-      case 'receipt':
-        sendReceiptMessage(senderID);
-        break;
-
-      case 'quick reply':
-        interestsQuickReply(senderID);
-        break;
-
-      case 'read receipt':
-        sendReadReceipt(senderID);
-        break;
-
-      case 'typing on':
-        sendTypingOn(senderID);
-        break;
-
-      case 'typing off':
-        sendTypingOff(senderID);
-        break;
-
-      case 'account linking':
-        sendAccountLinking(senderID);
-        break;
-
-      case '$10,000-$70,000':
-        sendTextMessage(senderID, "Noted!", function() {
-            pricesQuickReply(senderID)
-        });
-
-        object.price = messageText;
-        var priceSplit = object.price.split('-');
-        object.minPrice = priceSplit[0].split(',').join('').split('$').join('');
-        object.maxPrice = priceSplit[1].split(',').join('').split('$').join('');
-        break;
-
-      case 'computer':
-        sendTextMessage(senderID, "Awesome! Just a few more questions. What are your SAT or ACT scores (specify range +/- 225)?");
-        object.major = messageText;
-        object.majorSplit = object.major.split(' ').join('%20');
-        break;
-
-      case '1100-1550':
-        sendTextMessage(senderID, 'Last thing. Considering the major you told me, what is the ideal range for your projected salary (min-max)?');
-        object.SAT = messageText;
-        var satSplit = object.SAT.split('-');
-        object.satMin = satSplit[0];
-        object.satMax = satSplit[1];
-        break;
-
-      case '$30,000-$80,000':
-        sendTextMessage(senderID, 'Got it! I will generate a list of schools that match your interests, including the three you had mentioned earlier:', function() {
-          // sendCollegeList(senderID);
-          object.salary = messageText;
-          var salarySplit = object.salary.split('-');
-          object.salaryMin = salarySplit[0].split(',').join('').split('$').join('');
-          object.salaryMax = salarySplit[1].split(',').join('').split('$').join('');
-          dbQuery(senderID, object);
-        });
-        break;
-
-      default:
-        sendTextMessage(senderID, messageText);
-    }*/
-
-
-
   } else if (messageAttachments) {
     sendTextMessage(senderID, "Message with attachment received");
   }
@@ -591,6 +459,7 @@ function receivedPostback(event) {
       .then(function(user){
         if (user){
           user.data = {};
+          user.completed = false;
         } else {
           user = new User({
             data: {},
@@ -634,7 +503,7 @@ function sendQuery(message, senderID, context) {
   });
 }
 
-// TODO: randomize prompt
+// // TODO: randomize prompt
 function getPrompt(state) {
   if (state === 'add-major') {
     return 'What major are you interested in pursuing?';
@@ -645,7 +514,7 @@ function getPrompt(state) {
   } else if (state === 'add-college') {
     return 'What are three colleges that you might be interested in already?'; //FIX COLLEGES
   } else if (state === 'add-SAT-or-ACT') {
-    return 'Now, can you tell me your highest score range on either the SAT or ACT (+/- 100)?'; //FIX SCORES
+    return 'Now, can you tell me your highest score range on either the SAT (+/- 250) or ACT (+/- 5)?'; //FIX SCORES
   } else if (state === 'add-salary') {
     return 'Considering the major you told me, what would be your ideal projected salary range?'; //FIX TUITION
   } else {
@@ -658,10 +527,11 @@ function getNextState(user) {
   if (user.completed) {
     return null;
   }
-  var state = [user.data.major, user.data.location, user.data.minPrice, user.data.minScore, user.data.colleges, user.data.salary];
+  console.log(user);
+  var state = [user.data.major, user.data.location, user.data.minPrice, user.data.minScore, user.data.colleges, user.data.minSalary];
   for (var i = 0; i < state.length; i++) {
     // IF A KEY HAS NOT BEEN ASSIGNED A VALUE YET
-    if (!state[i]) {
+    if (!state[i] || (Array.isArray(state[i]) && state[i].length === 0)) {
       if (i === 0) {
         return 'add-major';
       } else if (i === 1) {
@@ -699,134 +569,6 @@ function receivedMessageRead(event) {
     "number %d", watermark, sequenceNumber);
 }
 
-/*
- * Account Link Event
- *
- * This event is called when the Link Account or UnLink Account action has been
- * tapped.
- * https://developers.facebook.com/docs/messenger-platform/webhook-reference/account-linking
- *
- */
-function receivedAccountLink(event) {
-  var senderID = event.sender.id;
-  var recipientID = event.recipient.id;
-
-  var status = event.account_linking.status;
-  var authCode = event.account_linking.authorization_code;
-
-  console.log("Received account link event with for user %d with status %s " +
-    "and auth code %s ", senderID, status, authCode);
-}
-
-/*
- * Send an image using the Send API.
- *
- */
-function sendImageMessage(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      attachment: {
-        type: "image",
-        payload: {
-          url: SERVER_URL + "/assets/rift.png"
-        }
-      }
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Send a Gif using the Send API.
- *
- */
-function sendGifMessage(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      attachment: {
-        type: "image",
-        payload: {
-          url: SERVER_URL + "/assets/instagram_logo.gif"
-        }
-      }
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Send audio using the Send API.
- *
- */
-function sendAudioMessage(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      attachment: {
-        type: "audio",
-        payload: {
-          url: SERVER_URL + "/assets/sample.mp3"
-        }
-      }
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Send a video using the Send API.
- *
- */
-function sendVideoMessage(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      attachment: {
-        type: "video",
-        payload: {
-          url: SERVER_URL + "/assets/allofus480.mov"
-        }
-      }
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Send a file using the Send API.
- *
- */
-function sendFileMessage(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      attachment: {
-        type: "file",
-        payload: {
-          url: SERVER_URL + "/assets/test.txt"
-        }
-      }
-    }
-  };
-
-  callSendAPI(messageData);
-}
 
 /*
  * Send a text message using the Send API.
@@ -846,57 +588,36 @@ function sendTextMessage(recipientId, messageText, cb) {
   callSendAPI(messageData, cb);
 }
 
-/*
- * Send a button message using the Send API.
- *
- */
-function sendRegionButton1(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      attachment: {
-        type: "template",
-        payload: {
-          template_type: "button",
-          text: "Pick a region:",
-          buttons:[{
-            type: "postback",
-            title: "U.S. Service Schools",
-            payload: "0"
-          }, {
-            type: "postback",
-            title: "New England (CT, ME, MA, NH, RI, VT)",
-            payload: "1"
-          }, {
-            type: "postback",
-            title: "Mid East (DE, DC, MD, NJ, NY, PA)",
-            payload: "2"
-          }
-        ]
-        }
-      }
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-
-function dbQuery(recipientId, object) {
+function dbQuery(recipientId, user) {
   // console.log(object);
-  var majorUrl = '&2014.academics.program_percentage.' + object.majorSplit + '__range=0..1';
-  var locationUrl = '&school.region_id=' + object.location;
-  var priceUrl = '&2014.cost.attendance.academic_year__range=' + object.minPrice + '..' + object.maxPrice;
-  var SATurl = '&2014.admissions.sat_scores.average.overall__range=' + object.satMin + '..' + object.satMax;
-  var salaryUrl = '&2011.earnings.6_yrs_after_entry.working_not_enrolled.mean_earnings__range=' + object.salaryMin + '..' + object.salaryMax;
-  var totalUrl = schoolURL+ majorUrl + locationUrl + priceUrl + SATurl + salaryUrl;
-  axios.get( totalUrl + '&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url)
-  .then(function(response) {
-    console.log("response", response.data);
+  var majorUrl = '&2014.academics.program_percentage.' + 'computer' + '__range=0..1';
+  var locationUrl = '&school.region_id=' + user.data.location;
+  var priceUrl = '&2014.cost.attendance.academic_year__range=' + user.data.minPrice + '..' + user.data.maxPrice;
+  var scoreUrl;
+  if(user.data.scoreType === "sat"){
+    scoreUrl = '&2014.admissions.sat_scores.average.overall__range=' + user.data.minScore + '..' + user.data.maxScore;
+  }
+  if(user.data.scoreType === "act"){
+    scoreUrl = '&2014.admissions.act_scores.midpoint.cumulative__range=' + user.data.minScore + '..' + user.data.maxScore;
+  }
+  var salaryUrl = '&2011.earnings.6_yrs_after_entry.working_not_enrolled.mean_earnings__range=' + user.data.minSalary + '..' + user.data.maxSalary;
+  var totalUrl = schoolURL + majorUrl + locationUrl + priceUrl + scoreUrl + salaryUrl;
 
-    var schoolElements = [object.school1, object.school2, object.school3];
+
+  // /////////////
+    // MAKE THREE AXIOS REQUESTS IN ARRAY, THEN DO PROMISE.ALL THAT GIVES US THE THREE OBJECTS as THE RESPONSE
+    var schoolList = user.data.colleges.split(',');
+    var item1 = schoolList[0].split(' ').join('%20');
+    var item2 = schoolList[1].split(' ').join('%20');
+    var item3 = schoolList[2].split(' ').join('%20');
+    var completeUrl1 = schoolURL + 'school.name=' +item1 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url
+    var completeUrl2 = schoolURL + 'school.name=' +item2 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url
+    var completeUrl3 = schoolURL + 'school.name=' +item3 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url
+
+  var threeSchools = [axios.get(completeUrl1), axios.get(completeUrl2), axios.get(completeUrl3)];
+  Promise.all(threeSchools)
+  .then(function(response) {
+    var schoolElements = response.data.results;
     var elements = [];
     for (var i = 0; i < 3; i++) {
       var school = schoolElements[i];
@@ -914,6 +635,14 @@ function dbQuery(recipientId, object) {
         }],
       })
     }
+  })
+  .catch(function(error) {
+    console.log("error",error);
+  })
+
+  axios.get( totalUrl + '&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url)
+  .then(function(response) {
+    console.log("response from DB api", response.data);
     for (var i = 0; i < Math.min(7, response.data.results.length); i++) {
       var dbSchool = response.data.results[i];
       elements.push({
@@ -952,349 +681,9 @@ function dbQuery(recipientId, object) {
       console.log(error);
     });
 }
+  // /////////////
 
-/*
- * Send a Structured Message (Generic Message type) using the Send API.
- *
- */
-function sendCollegeList(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      attachment: {
-        type: "template",
-        payload: {
-          template_type: "generic",
-          elements: [{
-            title: "rift",
-            subtitle: "Next-generation virtual reality",
-            item_url: "https://www.oculus.com/en-us/rift/",
-            image_url: SERVER_URL + "/assets/rift.png",
-            buttons: [{
-              type: "web_url",
-              url: "https://www.oculus.com/en-us/rift/",
-              title: "Open Web URL"
-            }, {
-              type: "postback",
-              title: "Call Postback",
-              payload: "Payload for first bubble",
-            }],
-          }, {
-            title: "touch",
-            subtitle: "Your Hands, Now in VR",
-            item_url: "https://www.oculus.com/en-us/touch/",
-            image_url: SERVER_URL + "/assets/touch.png",
-            buttons: [{
-              type: "web_url",
-              url: "https://www.oculus.com/en-us/touch/",
-              title: "Open Web URL"
-            }, {
-              type: "postback",
-              title: "Call Postback",
-              payload: "Payload for second bubble",
-            }]
-          }]
-        }
-      }
-    }
-  };
 
-  callSendAPI(messageData);
-}
-
-/*
- * Send a receipt message using the Send API.
- *
- */
-function sendReceiptMessage(recipientId) {
-  // Generate a random receipt ID as the API requires a unique ID
-  var receiptId = "order" + Math.floor(Math.random()*1000);
-
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message:{
-      attachment: {
-        type: "template",
-        payload: {
-          template_type: "receipt",
-          recipient_name: "Peter Chang",
-          order_number: receiptId,
-          currency: "USD",
-          payment_method: "Visa 1234",
-          timestamp: "1428444852",
-          elements: [{
-            title: "Oculus Rift",
-            subtitle: "Includes: headset, sensor, remote",
-            quantity: 1,
-            price: 599.00,
-            currency: "USD",
-            image_url: SERVER_URL + "/assets/riftsq.png"
-          }, {
-            title: "Samsung Gear VR",
-            subtitle: "Frost White",
-            quantity: 1,
-            price: 99.99,
-            currency: "USD",
-            image_url: SERVER_URL + "/assets/gearvrsq.png"
-          }],
-          address: {
-            street_1: "1 Hacker Way",
-            street_2: "",
-            city: "Menlo Park",
-            postal_code: "94025",
-            state: "CA",
-            country: "US"
-          },
-          summary: {
-            subtotal: 698.99,
-            shipping_cost: 20.00,
-            total_tax: 57.67,
-            total_cost: 626.66
-          },
-          adjustments: [{
-            name: "New Customer Discount",
-            amount: -50
-          }, {
-            name: "$100 Off Coupon",
-            amount: -100
-          }]
-        }
-      }
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Send a message with Quick Reply buttons.
- *
- */
- // QUICK REPLY FOR PROMPTING THREE INTERESTS
-function interestsQuickReply(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      text: "Pick one of the three choices below:",
-      quick_replies: [
-        {
-          "content_type":"text",
-          "title":"Major",
-          "payload":"DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_MAJOR"
-        },
-        {
-          "content_type":"text",
-          "title":"Location",
-          "payload":"DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_LOCATION"
-        },
-        {
-          "content_type":"text",
-          "title":"Price",
-          "payload":"DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_PRICE"
-        }
-      ]
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-// Quick reply if PRICE is picked first
-function pricesQuickReply(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      text: "Choose one of the two remaining choices below:",
-      quick_replies: [
-        {
-          "content_type":"text",
-          "title":"Major",
-          "payload":"DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_MAJOR"
-        },
-        {
-          "content_type":"text",
-          "title":"Location",
-          "payload":"DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_LOCATION"
-        }
-      ]
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-// Quick reply if LOCATION is picked
-function locationQuickReply(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      text: "Pick a region:",
-      quick_replies: [
-        {
-          "content_type":"text",
-          "title": "U.S. Service Schools",
-          "payload": "0"
-        },
-        {
-          "content_type":"text",
-          "title": "New England (CT, ME, MA, NH, RI, VT)",
-          "payload": "1"
-        },
-        {
-          "content_type":"text",
-          "title": "Mid East (DE, DC, MD, NJ, NY, PA)",
-          "payload": "2"
-        },
-        {
-          "content_type":"text",
-          "title": "Great Lakes (IL, IN, MI, OH, WI)",
-          "payload": "3"
-        },
-        {
-          "content_type":"text",
-          "title": "Plains (IA, KS, MN, MO, NE, ND, SD)",
-          "payload": "4"
-        },
-        {
-          "content_type":"text",
-          "title": "Southeast (AL, AR, FL, GA, KY, LA, MS, NC, SC, TN, VA, WV)",
-          "payload": "5"
-        },
-        {
-          "content_type":"text",
-          "title": "Southwest (AZ, NM, OK, TX)",
-          "payload": "6"
-        },
-        {
-          "content_type":"text",
-          "title": "Rocky Mountains (CO, ID, MT, UT, WY)",
-          "payload": "7"
-        },
-        {
-          "content_type":"text",
-          "title": "Far West (AK, CA, HI, NV, OR, WA)",
-          "payload": "8"
-        },
-        {
-          "content_type":"text",
-          "title": "Outlying Areas (AS, FM, GU, MH, MP, PR, PW, VI)",
-          "payload": "9"
-        }
-      ]
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-// Quick reply if PRICE is picked first
-function majorQuickReply(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      text: "Choose the remaining choice below:",
-      quick_replies: [
-        {
-          "content_type":"text",
-          "title":"Major",
-          "payload":"DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_MAJOR"
-        }
-      ]
-    }
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Send a read receipt to indicate the message has been read
- *
- */
-function sendReadReceipt(recipientId) {
-  console.log("Sending a read receipt to mark message as seen");
-
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    sender_action: "mark_seen"
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Turn typing indicator on
- *
- */
-function sendTypingOn(recipientId) {
-  console.log("Turning typing indicator on");
-
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    sender_action: "typing_on"
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Turn typing indicator off
- *
- */
-function sendTypingOff(recipientId) {
-  console.log("Turning typing indicator off");
-
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    sender_action: "typing_off"
-  };
-
-  callSendAPI(messageData);
-}
-
-/*
- * Send a message with the account linking call-to-action
- *
- */
-function sendAccountLinking(recipientId) {
-  var messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      attachment: {
-        type: "template",
-        payload: {
-          template_type: "button",
-          text: "Welcome. Link your account.",
-          buttons:[{
-            type: "account_link",
-            url: SERVER_URL + "/authorize"
-          }]
-        }
-      }
-    }
-  };
-
-  callSendAPI(messageData);
-}
 
 /*
  * Call the Send API. The message data goes in the body. If successful, we'll
