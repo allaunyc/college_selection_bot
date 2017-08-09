@@ -590,6 +590,7 @@ function sendTextMessage(recipientId, messageText, cb) {
 
 function dbQuery(recipientId, user) {
   // console.log(object);
+
   var majorUrl = '&2014.academics.program_percentage.' + 'computer' + '__range=0..1';
   var locationUrl = '&school.region_id=' + user.data.location;
   var priceUrl = '&2014.cost.attendance.academic_year__range=' + user.data.minPrice + '..' + user.data.maxPrice;
@@ -616,6 +617,8 @@ function dbQuery(recipientId, user) {
 
   var threeSchools = [axios.get(completeUrl1), axios.get(completeUrl2), axios.get(completeUrl3)];
   Promise.all(threeSchools)
+
+
   .then(function(response) {
     var schoolElements = response.data.results;
     var elements = [];
