@@ -18,7 +18,8 @@ const
   https = require('https'),
   request = require('request'),
   axios = require('axios'),
-  models = require('./models/models');
+  models = require('./models/models'),
+  _ = require('underscore')
 
 var app = express();
 var User = models.User;
@@ -63,46 +64,45 @@ if (!(APP_SECRET && VALIDATION_TOKEN && PAGE_ACCESS_TOKEN && SERVER_URL)) {
   process.exit(1);
 }
 
-
 var dbMajors = [
-  {agriculture: []},
+  {agriculture: ['agriculture']},
   {resources: ['environmental science', 'meteorology']},
-  {architecture: []},
+  {architecture: ['architecture']},
   {ethnic_cultural_gender: ['ethnic studies']},
-  {communication: ['human development']},
+  {communication: ['human development', 'communication']},
   {communications_technology: ['communications technology', 'telecommunications']},
   {computer: ['computer science', 'information science']},
-  {personal_culinary: ['culinary arts']},
-  {education: []},
-  {engineering: []},
-  {engineering_technology: []},
-  {language: []},
+  {personal_culinary: ['culinary arts', 'food science']},
+  {education: ['education']},
+  {engineering: ['engineering']},
+  {engineering_technology: ['engineering technology']},
+  {language: ['language']},
   {family_consumer_science: ['family consumer science', 'rehabilitation services', 'social work', 'speech pathology and audiology']},
   {legal: ['law', 'crime, law, and justice']},
-  {english: []},
-  {humanities: []},
-  {library: []},
+  {english: ['english']},
+  {humanities: ['humanities']},
+  {library: ['library']},
   {biological: ['biology', 'animal science', 'biochemistry', 'biotechnology', 'marine biology', 'physiology']},
-  {mathematics: ['finance', 'accounting', 'actuarial science']},
+  {mathematics: ['finance', 'accounting', 'actuarial science', 'mathematics']},
   {public_administration_social_service: ['public administration']},
   {military: ['military science']},
-  {multidiscipline: ['multidisciplinary science']},
+  {multidiscipline: ['multidisciplinary science', 'multidisciplinary studies']},
   {parks_recreation_fitness: ['fitness']},
   {philosophy_religious: ['philosophy']},
   {theology_religious_vocation: ['theology']},
   {physical_science: ['physical science']},
   {science_technology: ['science technology']},
-  {psychology: []},
+  {psychology: ['psychology']},
   {security_law_enforcement: ['law enforcement']},
   {social_science: ['social science','political science', 'economics', 'anthropology', 'archaeology', 'geoscience', 'geography', 'hospitality', 'sociology']},
-  {construction: []},
+  {construction: ['construction']},
   {mechanic_repair_technology: ['mechanics']},
   {precision_production: ['precision production']},
-  {transportation: []},
+  {transportation: ['transportation']},
   {visual_performing: ['studio art']},
-  {health: ['nursing', 'pre-medicine']},
+  {health: ['nursing', 'pre-medicine', 'health', 'nutrition']},
   {business_marketing: ['business', 'marketing']},
-  {history: []}
+  {history: ['history']}
 
 ]
 
@@ -319,12 +319,39 @@ function receivedMessage(event) {
         console.log(foundUser.currentContext);
         console.log(data.result.parameters, "params");
         if (foundUser.currentContext === 'add-major') {
-          foundUser.data.major = data.result.parameters['major'];
+          foundUser.data.major  = data.result.parameters['major'];
+          //
+
+          _.mapObject(dbMajors, function(val, key) {
+            if(val.length>1){
+              for(var i=0; i<val.length; i++){
+                if(val[i] === foundUser.data.major){
+                  foundUser.data.major = key;
+                }
+              }
+            }else{
+              foundUser.data.major = val[0];
+            }
+          })
+
+
+
+          // dbMajors.forEach(function(major) {
+          //     major.forEach(function(arr, key){
+          //       for(var i=0; i<arr.length; i++){
+          //         if(arr[i] === foundUser.data.major){
+          //           foundUser.data.major = key;
+          //         }
+          //       }
+          //
+          //     })
+          // })
+
           console.log("inside major",foundUser.data.major);
         } else if (foundUser.currentContext === 'add-location') {
-            if(data.result.parameters['geo-city']){
-              foundUser.data.location = data.result.parameters['geo-city'];
-            }
+            // if(data.result.parameters['geo-city']){
+            //   foundUser.data.location = data.result.parameters['geo-city'];
+            // }
             if(data.result.parameters['region1']){
               foundUser.data.location = data.result.parameters['region1'];
             }
@@ -346,8 +373,8 @@ function receivedMessage(event) {
         } else if (foundUser.currentContext === 'add-college') {
           foundUser.data.colleges = data.result.parameters['college'];
 
-          console.log(foundUser.data.parameters.college);
-          console.log("look here for college string", foundUser.data.parameters.college[0], foundUser.data.parameters.college[1], foundUser.data.parameters.college[2]);
+          console.log(foundUser.data.colleges);
+          console.log("look here for college string", foundUser.data.colleges[0], foundUser.data.colleges[1], foundUser.data.colleges[2]);
         } else if (foundUser.currentContext === 'add-SAT-or-ACT') {
           if (data.result.parameters['act-min'] && data.result.parameters['act-max']){
             foundUser.data.minScore = data.result.parameters['act-min'];
@@ -377,7 +404,10 @@ function receivedMessage(event) {
         var next = getNextState(foundUser);
         if (next === null) {
           foundUser.completed = true;
-          dbQuery(recipientID, foundUser, obj);
+          sendTextMessage(senderID, "Awesome! In addition to the schools you mentioned earlier, let me pull up a list that matches your criteria!", function(){
+            sendTextMessage(senderID, "Keep in mind that the results may vary depending on your specifications.");
+            dbQuery(senderID, foundUser);
+          });
           return;
         }
         foundUser.currentContext = next;
@@ -386,16 +416,20 @@ function receivedMessage(event) {
         return data;
       }
     })
-    .then(function(data) {
-      if(data.result.parameters['major']){
-        sendTextMessage(senderID, (data.result.fulfillment.speech));
+    .then((data1) => {
+      console.log(data1);
+      if(data1 === undefined){
         return;
       }
-      sendTextMessage(senderID, data.result.fulfillment.speech);
+      if(data1.result.parameters['major']){
+        sendTextMessage(senderID, (data1.result.fulfillment.speech));
+        return;
+      }
+      sendTextMessage(senderID, data1.result.fulfillment.speech);
     })
     .catch(function(err) {
       // do nothing
-      // console.log(err);
+      console.log(err);
     })
   } else if (messageAttachments) {
     sendTextMessage(senderID, "Message with attachment received");
@@ -591,7 +625,7 @@ function sendTextMessage(recipientId, messageText, cb) {
 function dbQuery(recipientId, user) {
   // console.log(object);
 
-  var majorUrl = '&2014.academics.program_percentage.' + 'computer' + '__range=0..1';
+  var majorUrl = '&2014.academics.program_percentage.' + user.data.major + '__range=0..1';
   var locationUrl = '&school.region_id=' + user.data.location;
   var priceUrl = '&2014.cost.attendance.academic_year__range=' + user.data.minPrice + '..' + user.data.maxPrice;
   var scoreUrl;
@@ -603,86 +637,93 @@ function dbQuery(recipientId, user) {
   }
   var salaryUrl = '&2011.earnings.6_yrs_after_entry.working_not_enrolled.mean_earnings__range=' + user.data.minSalary + '..' + user.data.maxSalary;
   var totalUrl = schoolURL + majorUrl + locationUrl + priceUrl + scoreUrl + salaryUrl;
+  console.log("Look here for the totalURL", totalUrl);
 
 
   // /////////////
     // MAKE THREE AXIOS REQUESTS IN ARRAY, THEN DO PROMISE.ALL THAT GIVES US THE THREE OBJECTS as THE RESPONSE
-    var schoolList = user.data.colleges.split(',');
+    console.log("The college list represented as an array", user.data.colleges);
+    var schoolList = user.data.colleges;
     var item1 = schoolList[0].split(' ').join('%20');
     var item2 = schoolList[1].split(' ').join('%20');
     var item3 = schoolList[2].split(' ').join('%20');
-    var completeUrl1 = schoolURL + 'school.name=' +item1 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url
-    var completeUrl2 = schoolURL + 'school.name=' +item2 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url
-    var completeUrl3 = schoolURL + 'school.name=' +item3 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url
+    var completeUrl1 = schoolURL + 'school.name=' +item1 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url;
+    var completeUrl2 = schoolURL + 'school.name=' +item2 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url;
+    var completeUrl3 = schoolURL + 'school.name=' +item3 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url;
+    var promiseArr = [axios.get(completeUrl1), axios.get(completeUrl2), axios.get(completeUrl3)];
 
-  var threeSchools = [axios.get(completeUrl1), axios.get(completeUrl2), axios.get(completeUrl3)];
-  Promise.all(threeSchools)
+    Promise.all(promiseArr)
+    .then((response1) => {
 
-
-  .then(function(response) {
-    var schoolElements = response.data.results;
+    var schoolElements = response1.map(res => res.data.results);
+    console.log('schoolElements array of objects', schoolElements[0]);
     var elements = [];
     for (var i = 0; i < 3; i++) {
-      var school = schoolElements[i];
-      elements.push({
-        title: school['school.name'],
-        subtitle: school['school.city'] + ',' + school['school.state'] + ',' + school['school.zip'],
-        buttons: [{
-          type: "web_url",
-          url: school['school.school_url'],
-          title: "School link"
-        }, {
-          type: "web_url",
-          url: school['school.price_calculator_url'],
-          title: "Price Calculator"
-        }],
-      })
+      for (var j = 0; j < schoolElements[i].length; j++) {
+
+      var school = schoolElements[i][j];
+
+      if(school['school.name'].split(' ').join('%20') === item1 || school['school.name'].split(' ').join('%20') === item2 || school['school.name'].split(' ').join('%20') === item3){
+
+        elements.push({
+          title: school['school.name'],
+          subtitle: school['school.city'] + ',' + school['school.state'] + ',' + school['school.zip'],
+          buttons: [{
+            type: "web_url",
+            url: school['school.school_url'],
+            title: "School link"
+          }, {
+            type: "web_url",
+            url: school['school.price_calculator_url'],
+            title: "Price Calculator"
+          }],
+        })
     }
+    }
+  }
+    axios.get( totalUrl + '&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url)
+    .then(function(response) {
+      console.log("response from DB api", response.data);
+      console.log("these should be the three schools the user specified, added to the front of the master college list", elements);
+      for (var i = 0; i < Math.min(7, response.data.results.length); i++) {
+        var dbSchool = response.data.results[i];
+        elements.push({
+          title: dbSchool['school.name'],
+          subtitle: dbSchool['school.city'] + ',' + dbSchool['school.state'] + ',' + dbSchool['school.zip'],
+          buttons: [{
+            type: "web_url",
+            url: dbSchool['school.school_url'],
+            title: "School link"
+          }, {
+            type: "web_url",
+            url: dbSchool['school.price_calculator_url'],
+            title: "Price Calculator"
+          }],
+        })
+      }
+        var messageData = {
+            recipient: {
+              id: recipientId
+            },
+            message: {
+              attachment: {
+                type: "template",
+                payload: {
+                  template_type: "generic",
+                  elements: elements
+                }
+              }
+            }
+          }
+
+          // console.log("messageData",JSON.stringify(messageData, null, 4));
+          callSendAPI(messageData);
+      })
   })
   .catch(function(error) {
     console.log("error",error);
   })
 
-  axios.get( totalUrl + '&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url)
-  .then(function(response) {
-    console.log("response from DB api", response.data);
-    for (var i = 0; i < Math.min(7, response.data.results.length); i++) {
-      var dbSchool = response.data.results[i];
-      elements.push({
-        title: dbSchool['school.name'],
-        subtitle: dbSchool['school.city'] + ',' + dbSchool['school.state'] + ',' + dbSchool['school.zip'],
-        buttons: [{
-          type: "web_url",
-          url: dbSchool['school.school_url'],
-          title: "School link"
-        }, {
-          type: "web_url",
-          url: dbSchool['school.price_calculator_url'],
-          title: "Price Calculator"
-        }],
-      })
-    }
-      var messageData = {
-          recipient: {
-            id: recipientId
-          },
-          message: {
-            attachment: {
-              type: "template",
-              payload: {
-                template_type: "generic",
-                elements: elements
-              }
-            }
-          }
-        }
-
-        // console.log("messageData",JSON.stringify(messageData, null, 4));
-        callSendAPI(messageData);
-    })
-    .catch(function(error) {
-      console.log(error);
-    });
 }
   // /////////////
 
