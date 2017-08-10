@@ -64,6 +64,19 @@ if (!(APP_SECRET && VALIDATION_TOKEN && PAGE_ACCESS_TOKEN && SERVER_URL)) {
   process.exit(1);
 }
 
+var dbLocations = {
+  0: ['U.S. Service Academies'],
+  1: ['Connecticut', 'Maine', 'Massachusetts', 'New Hampshire', 'Rhode Island', 'Vermont'],
+  2: ['Delaware', 'Washington D.C', 'Maryland', 'New Jersey', 'New York', 'Pennsylvania'],
+  3: ['Illinois', 'Ohio', 'Indiana', 'Michigan', 'Wisconsin'],
+  4: ['Iowa', 'Kansas', 'Minnesota', 'Missouri', 'Nebraska', 'North Dakota', 'South Dakota'],
+  5: ['Alabama', 'Arkansas', 'Florida', 'Georgia', 'Kentucky', 'Louisiana', 'Mississippi', 'North Carolina', 'South Carolina', 'Tennessee', 'Virginia', 'West Virginia'],
+  6: ['Arizona', 'New Mexico', 'Oklahoma', 'Texas'],
+  7: ['Colorado', 'Idaho', 'Montana', 'Utah', 'Wyoming'],
+  8: ['Alaska', 'California', 'Hawaii', 'Nevada', 'Oregon', 'Washington'],
+  9: ['Virgin Islands', 'Guam', 'Puerto Rico', 'American Samoa', 'Federated States of Micronesia', 'Marshall Islands', 'Northern Mariana Islands', 'Palau']
+}
+
 var dbMajors = {
   agriculture: ['agriculture'],
   resources: ['environmental science', 'meteorology'],
@@ -311,6 +324,17 @@ function receivedMessage(event) {
     })
     .then(({ data }) => {
       console.log('APIAI', data);
+      // if(messageText === 'N/A'){
+      //   foundUser.data.major = null;
+      //   console.log("this should be null", foundUser.data.major);
+      //
+      //   var next = getNextState(foundUser);
+      //   foundUser.currentContext = next;
+      //   console.log(foundUser.currentContext);
+      //   foundUser.save();
+      //   return 'skipped';
+      //
+      // }else
       if (data.result.action === 'input.unknown' || data.result.actionIncomplete) {
         sendTextMessage(senderID, data.result.fulfillment.speech);
         throw new Error();
@@ -319,9 +343,12 @@ function receivedMessage(event) {
         console.log(data.result.parameters, "params");
         if (foundUser.currentContext === 'add-major') {
           // foundUser.data.major  = data.result.parameters['major'];
-          //
-          var temp = foundUser.data.major;
+          console.log("this is messageText", messageText);
+          if(messageText === 'N/A'){
+            foundUser.data.major = 'empty';
+            console.log("this should be empty", foundUser.data.major);
 
+          }else{
           _.mapObject(dbMajors, function(majorArr, key) {
 
             majorArr.map(function(majorString){
@@ -335,13 +362,23 @@ function receivedMessage(event) {
           })
 
           console.log("inside major",foundUser.data.major);
+          }
         } else if (foundUser.currentContext === 'add-location') {
             // if(data.result.parameters['geo-city']){
             //   foundUser.data.location = data.result.parameters['geo-city'];
             // }
-            if(data.result.parameters['region1']){
-              foundUser.data.location = data.result.parameters['region1'];
-            }
+              _.mapObject(dbLocations, function(locationArr, key) {
+
+                locationArr.map(function(locationString){
+                  if(locationString === data.result.parameters['region1'][0]){
+                    foundUser.data.location = key;
+                    console.log("look here for the location string", foundUser.data.location);
+                    return;
+                  }
+                })
+
+              })
+
         } else if (foundUser.currentContext === 'add-price') {
             if(typeof data.result.parameters['price-min'] === 'object'){
               console.log('obj min');
@@ -404,14 +441,11 @@ function receivedMessage(event) {
       }
     })
     .then((data1) => {
-      console.log(data1);
+      console.log('this is data1', data1);
       if(data1 === undefined){
         return;
       }
-      if(data1.result.parameters['major']){
-        sendTextMessage(senderID, (data1.result.fulfillment.speech));
-        return;
-      }
+
       sendTextMessage(senderID, data1.result.fulfillment.speech);
     })
     .catch(function(err) {
@@ -549,7 +583,8 @@ function getNextState(user) {
     return null;
   }
   console.log(user);
-  var state = [user.data.major, user.data.location, user.data.minPrice, user.data.minScore, user.data.colleges, user.data.minSalary];
+  // this should be included in state: user.data.colleges
+  var state = [user.data.major, user.data.location, user.data.minPrice, user.data.minScore, user.data.minSalary];
   for (var i = 0; i < state.length; i++) {
     // IF A KEY HAS NOT BEEN ASSIGNED A VALUE YET
     if (!state[i] || (Array.isArray(state[i]) && state[i].length === 0)) {
@@ -561,9 +596,11 @@ function getNextState(user) {
         return 'add-price';
       } else if (i === 3) {
         return 'add-SAT-or-ACT';
-      } else if (i === 4) {
-        return 'add-college';
-      } else if (i === 5) {
+      }
+      // else if (i === 4) {
+      //   return 'add-college';
+      // }
+      else if (i === 4) {
         return 'add-salary';
       }
     }
@@ -611,7 +648,24 @@ function sendTextMessage(recipientId, messageText, cb) {
 
 function dbQuery(recipientId, user) {
   // console.log(object);
-
+  if(user.data.major === 'empty'){
+    var majorUrl = '';
+  //   var locationUrl = 'school.region_id=' + user.data.location;
+  // }else{
+  //   var locationUrl = '&school.region_id=' + user.data.location;
+  }
+  if(user.data.location === 'empty'){
+    var locationUrl = '';
+  }
+  if(user.data.minPrice === 'empty' ){
+    var priceUrl = '';
+  }
+  if(user.data.minScore === 'empty'){
+    var scoreUrl = '';
+  }
+  if(user.data.minSalary === 'empty'){
+    var salaryUrl = '';
+  }
   var majorUrl = '&2014.academics.program_percentage.' + user.data.major + '__range=0..1';
   var locationUrl = '&school.region_id=' + user.data.location;
   var priceUrl = '&2014.cost.attendance.academic_year__range=' + user.data.minPrice + '..' + user.data.maxPrice;
@@ -629,46 +683,46 @@ function dbQuery(recipientId, user) {
 
   // /////////////
     // MAKE THREE AXIOS REQUESTS IN ARRAY, THEN DO PROMISE.ALL THAT GIVES US THE THREE OBJECTS as THE RESPONSE
-    console.log("The college list represented as an array", user.data.colleges);
-    var schoolList = user.data.colleges;
-    var item1 = schoolList[0].split(' ').join('%20');
-    var item2 = schoolList[1].split(' ').join('%20');
-    var item3 = schoolList[2].split(' ').join('%20');
-    var completeUrl1 = schoolURL + 'school.name=' +item1 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url;
-    var completeUrl2 = schoolURL + 'school.name=' +item2 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url;
-    var completeUrl3 = schoolURL + 'school.name=' +item3 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url;
-    var promiseArr = [axios.get(completeUrl1), axios.get(completeUrl2), axios.get(completeUrl3)];
-
-    Promise.all(promiseArr)
-    .then((response1) => {
-
-    var schoolElements = response1.map(res => res.data.results);
-    console.log('schoolElements array of objects', schoolElements[0]);
+  //   console.log("The college list represented as an array", user.data.colleges);
+  //   var schoolList = user.data.colleges;
+  //   var item1 = schoolList[0].split(' ').join('%20');
+  //   var item2 = schoolList[1].split(' ').join('%20');
+  //   var item3 = schoolList[2].split(' ').join('%20');
+  //   var completeUrl1 = schoolURL + 'school.name=' +item1 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url' + api_url;
+  //   var completeUrl2 = schoolURL + 'school.name=' +item2 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url' + api_url;
+  //   var completeUrl3 = schoolURL + 'school.name=' +item3 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url' + api_url;
+  //   var promiseArr = [axios.get(completeUrl1), axios.get(completeUrl2), axios.get(completeUrl3)];
+  //
+  //   Promise.all(promiseArr)
+  //   .then((response1) => {
+  //
+  //   var schoolElements = response1.map(res => res.data.results);
+  //   console.log('schoolElements array of objects', schoolElements[0]);
     var elements = [];
-    for (var i = 0; i < 3; i++) {
-      for (var j = 0; j < schoolElements[i].length; j++) {
-
-      var school = schoolElements[i][j];
-
-      if(school['school.name'].split(' ').join('%20') === item1 || school['school.name'].split(' ').join('%20') === item2 || school['school.name'].split(' ').join('%20') === item3){
-
-        elements.push({
-          title: school['school.name'],
-          subtitle: school['school.city'] + ',' + school['school.state'] + ',' + school['school.zip'],
-          buttons: [{
-            type: "web_url",
-            url: school['school.school_url'],
-            title: "School link"
-          }, {
-            type: "web_url",
-            url: school['school.price_calculator_url'],
-            title: "Price Calculator"
-          }],
-        })
-    }
-    }
-  }
-    axios.get( totalUrl + '&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,school.zip' + api_url)
+  //   for (var i = 0; i < 3; i++) {
+  //     for (var j = 0; j < schoolElements[i].length; j++) {
+  //
+  //     var school = schoolElements[i][j];
+  //
+  //     if(school['school.name'].split(' ').join('%20') === item1 || school['school.name'].split(' ').join('%20') === item2 || school['school.name'].split(' ').join('%20') === item3){
+  //
+  //       elements.push({
+  //         title: school['school.name'],
+  //         subtitle: school['school.city'] + ',' + school['school.state'],
+  //         buttons: [{
+  //           type: "web_url",
+  //           url: school['school.school_url'],
+  //           title: "School link"
+  //         }, {
+  //           type: "web_url",
+  //           url: school['school.price_calculator_url'],
+  //           title: "Price Calculator"
+  //         }],
+  //       })
+  //   }
+  //   }
+  // }
+    axios.get( totalUrl + '&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url' + api_url)
     .then(function(response) {
       console.log("response from DB api", response.data);
       console.log("these should be the three schools the user specified, added to the front of the master college list", elements);
@@ -676,7 +730,7 @@ function dbQuery(recipientId, user) {
         var dbSchool = response.data.results[i];
         elements.push({
           title: dbSchool['school.name'],
-          subtitle: dbSchool['school.city'] + ',' + dbSchool['school.state'] + ',' + dbSchool['school.zip'],
+          subtitle: dbSchool['school.city'] + ',' + dbSchool['school.state'],
           buttons: [{
             type: "web_url",
             url: dbSchool['school.school_url'],
@@ -706,7 +760,7 @@ function dbQuery(recipientId, user) {
           // console.log("messageData",JSON.stringify(messageData, null, 4));
           callSendAPI(messageData);
       })
-  })
+
   .catch(function(error) {
     console.log("error",error);
   })
