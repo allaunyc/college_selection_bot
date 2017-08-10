@@ -319,13 +319,13 @@ function receivedMessage(event) {
         console.log(foundUser.currentContext);
         console.log(data.result.parameters, "params");
         if (foundUser.currentContext === 'add-major') {
-          foundUser.data.major  = data.result.parameters['major'];
+          // foundUser.data.major  = data.result.parameters['major'];
           //
 
           _.mapObject(dbMajors, function(val, key) {
             if(val.length>1){
               for(var i=0; i<val.length; i++){
-                if(val[i] === foundUser.data.major){
+                if(val[i] === data.result.parameters['major']){
                   foundUser.data.major = key;
                 }
               }
