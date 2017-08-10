@@ -357,7 +357,7 @@ function receivedMessage(event) {
                 console.log("look here for the major string", foundUser.data.major);
                 return;
               }
-            })
+
 
           })
 
@@ -431,6 +431,24 @@ function receivedMessage(event) {
           sendTextMessage(senderID, "Awesome! In addition to the schools you mentioned earlier, let me pull up a list that matches your criteria!", function(){
             sendTextMessage(senderID, "Keep in mind that the results may vary depending on your specifications.");
             dbQuery(senderID, foundUser);
+            sendTextMessage(senderID, "If you want to restart the bot to explore different options, type in 'Restart'");
+            if (messageText === 'Restart') {
+              user = new User({
+                data: {},
+                completed: false,
+                senderId: senderID
+              });
+            }
+            return user.save();
+          .then(function(savedUser) {
+            var next = getNextState(savedUser);
+            savedUser.currentContext = next;
+            return savedUser.save();
+          })
+          .then(function(savedUser) {
+            sendTextMessage(senderID, getPrompt(savedUser.currentContext));
+          });
+
           });
           return;
         }
@@ -448,6 +466,7 @@ function receivedMessage(event) {
 
       sendTextMessage(senderID, data1.result.fulfillment.speech);
     })
+
     .catch(function(err) {
       // do nothing
       console.log(err);
