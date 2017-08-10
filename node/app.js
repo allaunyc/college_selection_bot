@@ -330,7 +330,7 @@ function receivedMessage(event) {
                 console.log("look here for the major string", foundUser.data.major);
                 return;
               }
-            })
+            
 
           })
 
