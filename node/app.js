@@ -64,47 +64,46 @@ if (!(APP_SECRET && VALIDATION_TOKEN && PAGE_ACCESS_TOKEN && SERVER_URL)) {
   process.exit(1);
 }
 
-var dbMajors = [
-  {agriculture: ['agriculture']},
-  {resources: ['environmental science', 'meteorology']},
-  {architecture: ['architecture']},
-  {ethnic_cultural_gender: ['ethnic studies']},
-  {communication: ['human development', 'communication']},
-  {communications_technology: ['communications technology', 'telecommunications']},
-  {computer: ['computer science', 'information science']},
-  {personal_culinary: ['culinary arts', 'food science']},
-  {education: ['education']},
-  {engineering: ['engineering']},
-  {engineering_technology: ['engineering technology']},
-  {language: ['language']},
-  {family_consumer_science: ['family consumer science', 'rehabilitation services', 'social work', 'speech pathology and audiology']},
-  {legal: ['law', 'crime, law, and justice']},
-  {english: ['english']},
-  {humanities: ['humanities']},
-  {library: ['library']},
-  {biological: ['biology', 'animal science', 'biochemistry', 'biotechnology', 'marine biology', 'physiology']},
-  {mathematics: ['finance', 'accounting', 'actuarial science', 'mathematics']},
-  {public_administration_social_service: ['public administration']},
-  {military: ['military science']},
-  {multidiscipline: ['multidisciplinary science', 'multidisciplinary studies']},
-  {parks_recreation_fitness: ['fitness']},
-  {philosophy_religious: ['philosophy']},
-  {theology_religious_vocation: ['theology']},
-  {physical_science: ['physical science']},
-  {science_technology: ['science technology']},
-  {psychology: ['psychology']},
-  {security_law_enforcement: ['law enforcement']},
-  {social_science: ['social science','political science', 'economics', 'anthropology', 'archaeology', 'geoscience', 'geography', 'hospitality', 'sociology']},
-  {construction: ['construction']},
-  {mechanic_repair_technology: ['mechanics']},
-  {precision_production: ['precision production']},
-  {transportation: ['transportation']},
-  {visual_performing: ['studio art']},
-  {health: ['nursing', 'pre-medicine', 'health', 'nutrition']},
-  {business_marketing: ['business', 'marketing']},
-  {history: ['history']}
-
-]
+var dbMajors = {
+  agriculture: ['agriculture'],
+  resources: ['environmental science', 'meteorology'],
+  architecture: ['architecture'],
+  ethnic_cultural_gender: ['ethnic studies'],
+  communication: ['human development', 'communication'],
+  communications_technology: ['communications technology', 'telecommunications'],
+  computer: ['computer science', 'information science'],
+  personal_culinary: ['culinary arts', 'food science'],
+  education: ['education'],
+  engineering: ['engineering'],
+  engineering_technology: ['engineering technology'],
+  language: ['language'],
+  family_consumer_science: ['family consumer science', 'rehabilitation services', 'social work', 'speech pathology and audiology'],
+  legal: ['law', 'crime, law, and justice'],
+  english: ['english'],
+  humanities: ['humanities'],
+  library: ['library'],
+  biological: ['biology', 'animal science', 'biochemistry', 'biotechnology', 'marine biology', 'physiology'],
+  mathematics: ['finance', 'accounting', 'actuarial science', 'mathematics'],
+  public_administration_social_service: ['public administration'],
+  military: ['military science'],
+  multidiscipline: ['multidisciplinary science', 'multidisciplinary studies'],
+  parks_recreation_fitness: ['fitness'],
+  philosophy_religious: ['philosophy'],
+  theology_religious_vocation: ['theology'],
+  physical_science: ['physical science'],
+  science_technology: ['science technology'],
+  psychology: ['psychology'],
+  security_law_enforcement: ['law enforcement'],
+  social_science: ['social science','political science', 'economics', 'anthropology', 'archaeology', 'geoscience', 'geography', 'hospitality', 'sociology'],
+  construction: ['construction'],
+  mechanic_repair_technology: ['mechanics'],
+  precision_production: ['precision production'],
+  transportation: ['transportation'],
+  visual_performing: ['studio art'],
+  health: ['nursing', 'pre-medicine', 'health', 'nutrition'],
+  business_marketing: ['business', 'marketing'],
+  history: ['history']
+}
 
 
 /*
@@ -321,7 +320,9 @@ function receivedMessage(event) {
         if (foundUser.currentContext === 'add-major') {
           // foundUser.data.major  = data.result.parameters['major'];
           //
+          var temp = foundUser.data.major;
 
+<<<<<<< HEAD
           _.mapObject(dbMajors, function(val, key) {
             if(val.length>1){
               for(var i=0; i<val.length; i++){
@@ -334,18 +335,19 @@ function receivedMessage(event) {
             }
           })
 
+=======
+          _.mapObject(dbMajors, function(majorArr, key) {
+>>>>>>> 5ff0d65467dec9aa314e687dfc137af961535caa
 
+            majorArr.map(function(majorString){
+              if(majorString === data.result.parameters['major']){
+                foundUser.data.major = key;
+                console.log("look here for the major string", foundUser.data.major);
+                return;
+              }
+            })
 
-          // dbMajors.forEach(function(major) {
-          //     major.forEach(function(arr, key){
-          //       for(var i=0; i<arr.length; i++){
-          //         if(arr[i] === foundUser.data.major){
-          //           foundUser.data.major = key;
-          //         }
-          //       }
-          //
-          //     })
-          // })
+          })
 
           console.log("inside major",foundUser.data.major);
         } else if (foundUser.currentContext === 'add-location') {
