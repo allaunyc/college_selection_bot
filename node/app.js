@@ -322,22 +322,7 @@ function receivedMessage(event) {
           //
           var temp = foundUser.data.major;
 
-<<<<<<< HEAD
-          _.mapObject(dbMajors, function(val, key) {
-            if(val.length>1){
-              for(var i=0; i<val.length; i++){
-                if(val[i] === data.result.parameters['major']){
-                  foundUser.data.major = key;
-                }
-              }
-            }else{
-              foundUser.data.major = val[0];
-            }
-          })
-
-=======
           _.mapObject(dbMajors, function(majorArr, key) {
->>>>>>> 5ff0d65467dec9aa314e687dfc137af961535caa
 
             majorArr.map(function(majorString){
               if(majorString === data.result.parameters['major']){
