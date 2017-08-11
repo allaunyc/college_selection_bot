@@ -319,18 +319,35 @@ function receivedMessage(event) {
   if (messageText) {
     User.findOne({senderId: senderID})
     .then(function(temp){
+
       foundUser = temp;
+      // if user wants to RESTART the conversation
+      if(messageText === "Restart"){
+        foundUser.data= {};
+        foundUser.completed = false;
+        foundUser.save();
+        var next = getNextState(foundUser);
+        foundUser.currentContext = next;
+        foundUser.save();
+        sendTextMessage(senderID, getPrompt(foundUser.currentContext));
+        return;
+      }
+
+
       var userContext = foundUser.currentContext;
       return sendQuery(messageText, senderID, userContext);
     })
     .then(({ data }) => {
-      console.log('APIAI', data);
+      console.log('APIAI', JSON.stringify(data, null, 2));
+      if(data === undefined){
+        return;
+      }
       if (data.result.action === 'input.unknown' || data.result.actionIncomplete) {
         sendTextMessage(senderID, data.result.fulfillment.speech);
         throw new Error();
       } else {
-        console.log(foundUser.currentContext);
-        console.log(data.result.parameters, "params");
+        console.log("This is the CURRENT CONTEXT:", foundUser.currentContext);
+        console.log("Params of CURRENT CONTEXT:", data.result.parameters);
         if (foundUser.currentContext === 'add-major') {
 
           // allows user to skip MAJOR section
@@ -376,11 +393,17 @@ function receivedMessage(event) {
         } else if (foundUser.currentContext === 'add-price') {
 
           // allows user to skip PRICE section
-          if(messageText === 'N/A'){
-            foundUser.data.minPrice = 'empty';
+          if(data.result.metadata.intentName === 'add-price --not-applicable'){
+            foundUser.data.minPrice = -100;
+            foundUser.data.maxPrice = -100;
             console.log("PRICE skipped: this should be empty:", foundUser.data.minPrice);
-
-          }else{
+          }
+          // if(messageText === 'N/A'){
+          //   foundUser.data.minPrice = 'empty';
+          //   console.log("PRICE skipped: this should be empty:", foundUser.data.minPrice);
+          //
+          // }
+          else{
             if(typeof data.result.parameters['price-min'] === 'object'){
               console.log('obj min');
               foundUser.data.minPrice = data.result.parameters['price-min'].amount;
@@ -404,11 +427,12 @@ function receivedMessage(event) {
         } else if (foundUser.currentContext === 'add-SAT-or-ACT') {
 
           // allows user to skip SCORES section
-          if(messageText === 'N/A'){
-            foundUser.data.minScore = 'empty';
-            console.log("SCORES skipped:this should be empty:", foundUser.data.minScore);
-
-          }else{
+          if(data.result.metadata.intentName === 'add-SAT-or-ACT --not-applicable'){
+            foundUser.data.minScore = -100;
+            foundUser.data.maxScore = -100;
+            console.log("SCORE skipped: this should be empty:", foundUser.data.minScore);
+          }
+          else{
             if (data.result.parameters['act-min'] && data.result.parameters['act-max']){
               foundUser.data.minScore = data.result.parameters['act-min'];
               foundUser.data.maxScore = data.result.parameters['act-max'];
@@ -422,12 +446,13 @@ function receivedMessage(event) {
           }
         } else if (foundUser.currentContext === 'add-salary') {
 
-          // allows user to skip SCORES section
-          if(messageText === 'N/A'){
-            foundUser.data.minSalary = 'empty';
-            console.log("SALARY skipped:this should be empty:", foundUser.data.minSalary);
-
-          }else{
+          // allows user to skip SALARY section
+          if(data.result.metadata.intentName === 'add-salary --not-applicable'){
+            foundUser.data.minSalary = -100;
+            foundUser.data.maxSalary = -100;
+            console.log("SCORE skipped: this should be empty:", foundUser.data.minSalary);
+          }
+          else{
             if(typeof data.result.parameters['salary-min'] === 'object'){
               console.log('obj min');
               foundUser.data.minSalary = data.result.parameters['salary-min'].amount; //CORRECT PARAM
@@ -453,7 +478,7 @@ function receivedMessage(event) {
           return;
         }
         foundUser.currentContext = next;
-        console.log(foundUser.currentContext);
+        console.log("this should be the next CURRENT CONTEXT: ", foundUser.currentContext);
         foundUser.save();
         return data;
       }
@@ -671,12 +696,13 @@ function sendTextMessage(recipientId, messageText, cb) {
 
 function dbQuery(recipientId, user) {
   //If the user skips ALL THE SECTIONS, default to this url: will query all colleges
-  if(user.data.major === 'empty' && user.data.location === 'empty' && user.data.minPrice === 'empty' && user.data.minScore === 'empty' && user.data.minSalary === 'empty'){
+  if(user.data.major === 'empty' && user.data.location === 'empty' && user.data.minPrice === -100 && user.data.minScore === -100 && user.data.minSalary === -100){
     fieldsUrl = '_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url';
   }
   //If the user skips MAJOR, its part in the query is omitted
   if(user.data.major === 'empty'){
     var majorUrl = '';
+    var locationUrl = '&school.region_id=' + user.data.location;
   }else{
     var majorUrl = '&2014.academics.program_percentage.' + user.data.major + '__range=0..1';
   }
@@ -684,19 +710,32 @@ function dbQuery(recipientId, user) {
   if(user.data.location === 'empty'){
     var locationUrl = '';
   }else{
-    var locationUrl = '&school.region_id=' + user.data.location;
+    if (user.data.major !== 'empty') {
+      var locationUrl = '&school.region_id=' + user.data.location;
+    }
   }
   //If the user skips PRICE, its part in the query is omitted
-  if(user.data.minPrice === 'empty' ){
+  if(user.data.minPrice === -100 ){
     var priceUrl = '';
   }else{
+    if (user.data.location === 'empty' && user.data.major === 'empty') {
+      var priceUrl = '2014.cost.attendance.academic_year__range=' + user.data.minPrice + '..' + user.data.maxPrice;
+    }
     var priceUrl = '&2014.cost.attendance.academic_year__range=' + user.data.minPrice + '..' + user.data.maxPrice;
   }
   //If the user skips SCORES, its part in the query is omitted
   var scoreUrl;
-  if(user.data.minScore === 'empty'){
+  if(user.data.minScore === -100){
     var scoreUrl = '';
   }else{
+    if (user.data.location === 'empty' && user.data.major === 'empty' && user.data.minPrice === -100 ) {
+      if(user.data.scoreType === "sat"){
+        scoreUrl = '2014.admissions.sat_scores.average.overall__range=' + user.data.minScore + '..' + user.data.maxScore;
+      }
+      if(user.data.scoreType === "act"){
+        scoreUrl = '2014.admissions.act_scores.midpoint.cumulative__range=' + user.data.minScore + '..' + user.data.maxScore;
+      }
+    }else {
     if(user.data.scoreType === "sat"){
       scoreUrl = '&2014.admissions.sat_scores.average.overall__range=' + user.data.minScore + '..' + user.data.maxScore;
     }
@@ -704,10 +743,14 @@ function dbQuery(recipientId, user) {
       scoreUrl = '&2014.admissions.act_scores.midpoint.cumulative__range=' + user.data.minScore + '..' + user.data.maxScore;
     }
   }
+  }
   //If the user skips SALARY, its part in the query is omitted
-  if(user.data.minSalary === 'empty'){
+  if(user.data.minSalary === -100){
     var salaryUrl = '';
   }else{
+    if (user.data.location === 'empty' && user.data.major === 'empty' && user.data.minPrice === -100 && user.data.minScore === -100) {
+      var salaryUrl = '2011.earnings.6_yrs_after_entry.working_not_enrolled.mean_earnings__range=' + user.data.minSalary + '..' + user.data.maxSalary;
+    }
     var salaryUrl = '&2011.earnings.6_yrs_after_entry.working_not_enrolled.mean_earnings__range=' + user.data.minSalary + '..' + user.data.maxSalary;
   }
   // var majorUrl = '&2014.academics.program_percentage.' + user.data.major + '__range=0..1';
@@ -772,6 +815,7 @@ function dbQuery(recipientId, user) {
       console.log("these should be the three schools the user specified, added to the front of the master college list", elements);
       for (var i = 0; i < Math.min(8, response.data.results.length); i++) {
         var dbSchool = response.data.results[i];
+        if (dbSchool['school.price_calculator_url']) {
         elements.push({
           title: dbSchool['school.name'],
           subtitle: dbSchool['school.city'] + ',' + dbSchool['school.state'],
@@ -785,6 +829,7 @@ function dbQuery(recipientId, user) {
             title: "Price Calculator"
           }],
         })
+      }
       }
         var messageData = {
             recipient: {
