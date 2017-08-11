@@ -554,7 +554,7 @@ function receivedPostback(event) {
     sendTextMessage(senderID, "Hi welcome to Strive! I am here to guide you with your search for the perfect college.", function() {
       sendTextMessage(senderID, "If at any point you would like to skip a question, just type 'N/A'.", function() {
       sendTextMessage(senderID, "If you want to start over at any given time during our chat, just type 'Restart'.", function() {
-      sendTextMessage(senderID, "Let's Begin!", function() {
+      sendTextMessage(senderID, "Let's Begin! 😃 ", function() {
       User.findOne({ senderId: senderID })
       .then(function(user){
         if (user){
