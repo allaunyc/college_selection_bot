@@ -57,6 +57,7 @@ const SERVER_URL = (process.env.SERVER_URL) ?
 
 var schoolURL = "https://api.data.gov/ed/collegescorecard/v1/schools?";
 var api_url = "&api_key=HxDzsIBV5xGSgXes8MdVqYgEGrdc7hWTFj3RStv2";
+var fieldsUrl = '&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url';
 
 
 if (!(APP_SECRET && VALIDATION_TOKEN && PAGE_ACCESS_TOKEN && SERVER_URL)) {
@@ -324,17 +325,6 @@ function receivedMessage(event) {
     })
     .then(({ data }) => {
       console.log('APIAI', data);
-      // if(messageText === 'N/A'){
-      //   foundUser.data.major = null;
-      //   console.log("this should be null", foundUser.data.major);
-      //
-      //   var next = getNextState(foundUser);
-      //   foundUser.currentContext = next;
-      //   console.log(foundUser.currentContext);
-      //   foundUser.save();
-      //   return 'skipped';
-      //
-      // }else
       if (data.result.action === 'input.unknown' || data.result.actionIncomplete) {
         sendTextMessage(senderID, data.result.fulfillment.speech);
         throw new Error();
@@ -342,8 +332,8 @@ function receivedMessage(event) {
         console.log(foundUser.currentContext);
         console.log(data.result.parameters, "params");
         if (foundUser.currentContext === 'add-major') {
-          // foundUser.data.major  = data.result.parameters['major'];
-          console.log("this is messageText", messageText);
+
+          // allows user to skip MAJOR section
           if(messageText === 'N/A'){
             foundUser.data.major = 'empty';
             console.log("this should be empty", foundUser.data.major);
@@ -357,20 +347,24 @@ function receivedMessage(event) {
                 console.log("look here for the major string", foundUser.data.major);
                 return;
               }
-
+            })
 
           })
 
           console.log("inside major",foundUser.data.major);
           }
         } else if (foundUser.currentContext === 'add-location') {
-            // if(data.result.parameters['geo-city']){
-            //   foundUser.data.location = data.result.parameters['geo-city'];
-            // }
+
+            // allows user to skip LOCATION section
+            if(messageText === 'N/A'){
+              foundUser.data.location = 'empty';
+              console.log("skip location:this should be 'empty':", foundUser.data.location);
+
+            }else{
               _.mapObject(dbLocations, function(locationArr, key) {
 
                 locationArr.map(function(locationString){
-                  if(locationString === data.result.parameters['region1'][0]){
+                  if(locationString === data.result.parameters['region1']){
                     foundUser.data.location = key;
                     console.log("look here for the location string", foundUser.data.location);
                     return;
@@ -378,8 +372,15 @@ function receivedMessage(event) {
                 })
 
               })
-
+            }
         } else if (foundUser.currentContext === 'add-price') {
+
+          // allows user to skip PRICE section
+          if(messageText === 'N/A'){
+            foundUser.data.price = 'empty';
+            console.log("PRICE skipped: this should be empty:", foundUser.data.price);
+
+          }else{
             if(typeof data.result.parameters['price-min'] === 'object'){
               console.log('obj min');
               foundUser.data.minPrice = data.result.parameters['price-min'].amount;
@@ -393,6 +394,7 @@ function receivedMessage(event) {
             }else{
               foundUser.data.maxPrice = data.result.parameters['price-max'].replace(',', '');
             }
+          }
            // CORRECT PARAM
         } else if (foundUser.currentContext === 'add-college') {
           foundUser.data.colleges = data.result.parameters['college'];
@@ -400,29 +402,45 @@ function receivedMessage(event) {
           console.log(foundUser.data.colleges);
           console.log("look here for college string", foundUser.data.colleges[0], foundUser.data.colleges[1], foundUser.data.colleges[2]);
         } else if (foundUser.currentContext === 'add-SAT-or-ACT') {
-          if (data.result.parameters['act-min'] && data.result.parameters['act-max']){
-            foundUser.data.minScore = data.result.parameters['act-min'];
-            foundUser.data.maxScore = data.result.parameters['act-max'];
-            foundUser.data.scoreType = "act";
 
-          }else if (data.result.parameters['sat-min'] && data.result.parameters['sat-max']){
-            foundUser.data.minScore = data.result.parameters['sat-min'];
-            foundUser.data.maxScore = data.result.parameters['sat-max'];
-            foundUser.data.scoreType = "sat";
+          // allows user to skip SCORES section
+          if(messageText === 'N/A'){
+            foundUser.data.minScore = 'empty';
+            console.log("SCORES skipped:this should be empty:", foundUser.data.minScore);
+
+          }else{
+            if (data.result.parameters['act-min'] && data.result.parameters['act-max']){
+              foundUser.data.minScore = data.result.parameters['act-min'];
+              foundUser.data.maxScore = data.result.parameters['act-max'];
+              foundUser.data.scoreType = "act";
+
+            }else if (data.result.parameters['sat-min'] && data.result.parameters['sat-max']){
+              foundUser.data.minScore = data.result.parameters['sat-min'];
+              foundUser.data.maxScore = data.result.parameters['sat-max'];
+              foundUser.data.scoreType = "sat";
+            }
           }
         } else if (foundUser.currentContext === 'add-salary') {
-          if(typeof data.result.parameters['salary-min'] === 'object'){
-            console.log('obj min');
-            foundUser.data.minSalary = data.result.parameters['salary-min'].amount; //CORRECT PARAM
-          } else {
-            foundUser.data.minSalary = data.result.parameters['salary-min'].replace(',', ''); //CORRECT PARAM
-          }
 
-          if(typeof data.result.parameters['salary-max'] === 'object'){
-            console.log('obj max');
-            foundUser.data.maxSalary = data.result.parameters['salary-max'].amount;
+          // allows user to skip SCORES section
+          if(messageText === 'N/A'){
+            foundUser.data.minSalary = 'empty';
+            console.log("SALARY skipped:this should be empty:", foundUser.data.minSalary);
+
           }else{
-            foundUser.data.maxSalary = data.result.parameters['salary-max'].replace(',', '');
+            if(typeof data.result.parameters['salary-min'] === 'object'){
+              console.log('obj min');
+              foundUser.data.minSalary = data.result.parameters['salary-min'].amount; //CORRECT PARAM
+            } else {
+              foundUser.data.minSalary = data.result.parameters['salary-min'].replace(',', ''); //CORRECT PARAM
+            }
+
+            if(typeof data.result.parameters['salary-max'] === 'object'){
+              console.log('obj max');
+              foundUser.data.maxSalary = data.result.parameters['salary-max'].amount;
+            }else{
+              foundUser.data.maxSalary = data.result.parameters['salary-max'].replace(',', '');
+            }
           }
         }
         var next = getNextState(foundUser);
@@ -431,24 +449,6 @@ function receivedMessage(event) {
           sendTextMessage(senderID, "Awesome! In addition to the schools you mentioned earlier, let me pull up a list that matches your criteria!", function(){
             sendTextMessage(senderID, "Keep in mind that the results may vary depending on your specifications.");
             dbQuery(senderID, foundUser);
-            sendTextMessage(senderID, "If you want to restart the bot to explore different options, type in 'Restart'");
-            if (messageText === 'Restart') {
-              user = new User({
-                data: {},
-                completed: false,
-                senderId: senderID
-              });
-            }
-            return user.save();
-          .then(function(savedUser) {
-            var next = getNextState(savedUser);
-            savedUser.currentContext = next;
-            return savedUser.save();
-          })
-          .then(function(savedUser) {
-            sendTextMessage(senderID, getPrompt(savedUser.currentContext));
-          });
-
           });
           return;
         }
@@ -466,7 +466,6 @@ function receivedMessage(event) {
 
       sendTextMessage(senderID, data1.result.fulfillment.speech);
     })
-
     .catch(function(err) {
       // do nothing
       console.log(err);
@@ -666,22 +665,27 @@ function sendTextMessage(recipientId, messageText, cb) {
 }
 
 function dbQuery(recipientId, user) {
-  // console.log(object);
+  //If the user skips ALL THE SECTIONS, default to this url: will query all colleges
+  if(user.data.major === 'empty' && user.data.location === 'empty' && user.data.minPrice === 'empty' && user.data.minScore === 'empty' && user.data.minSalary === 'empty'){
+    var fieldsUrl = '_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url';
+  }
+  //If the user skips MAJOR, its part in the query is omitted
   if(user.data.major === 'empty'){
     var majorUrl = '';
-  //   var locationUrl = 'school.region_id=' + user.data.location;
-  // }else{
-  //   var locationUrl = '&school.region_id=' + user.data.location;
   }
+  //If the user skips LOCATION, its part in the query is omitted
   if(user.data.location === 'empty'){
     var locationUrl = '';
   }
+  //If the user skips PRICE, its part in the query is omitted
   if(user.data.minPrice === 'empty' ){
     var priceUrl = '';
   }
+  //If the user skips SCORES, its part in the query is omitted
   if(user.data.minScore === 'empty'){
     var scoreUrl = '';
   }
+  //If the user skips SALARY, its part in the query is omitted
   if(user.data.minSalary === 'empty'){
     var salaryUrl = '';
   }
@@ -741,11 +745,11 @@ function dbQuery(recipientId, user) {
   //   }
   //   }
   // }
-    axios.get( totalUrl + '&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url' + api_url)
+    axios.get( totalUrl + fieldsUrl + api_url)
     .then(function(response) {
       console.log("response from DB api", response.data);
       console.log("these should be the three schools the user specified, added to the front of the master college list", elements);
-      for (var i = 0; i < Math.min(7, response.data.results.length); i++) {
+      for (var i = 0; i < Math.min(8, response.data.results.length); i++) {
         var dbSchool = response.data.results[i];
         elements.push({
           title: dbSchool['school.name'],
