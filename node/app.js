@@ -57,7 +57,7 @@ const SERVER_URL = (process.env.SERVER_URL) ?
 
 var schoolURL = "https://api.data.gov/ed/collegescorecard/v1/schools?";
 var api_url = "&api_key=HxDzsIBV5xGSgXes8MdVqYgEGrdc7hWTFj3RStv2";
-var fieldsUrl = '&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url';
+var fieldsUrl = "&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url";
 
 
 if (!(APP_SECRET && VALIDATION_TOKEN && PAGE_ACCESS_TOKEN && SERVER_URL)) {
@@ -377,8 +377,8 @@ function receivedMessage(event) {
 
           // allows user to skip PRICE section
           if(messageText === 'N/A'){
-            foundUser.data.price = 'empty';
-            console.log("PRICE skipped: this should be empty:", foundUser.data.price);
+            foundUser.data.minPrice = 'empty';
+            console.log("PRICE skipped: this should be empty:", foundUser.data.minPrice);
 
           }else{
             if(typeof data.result.parameters['price-min'] === 'object'){
@@ -526,8 +526,10 @@ function receivedPostback(event) {
   // When a postback is called, we'll send a message back to the sender to
   // let them know it was successful
   if(payload === "GET_STARTED_PAYLOAD"){
-    sendTextMessage(senderID, "Hi welcome to Strive! I am here to guide you with your search for the perfect college. Let's begin! ", function() {
-
+    sendTextMessage(senderID, "Hi welcome to Strive! I am here to guide you with your search for the perfect college.", function() {
+      sendTextMessage(senderID, "If at any point you would like to skip a question, just type 'N/A'.", function() {
+      sendTextMessage(senderID, "If you want to start over at any given time during our chat, just type 'Restart'.", function() {
+      sendTextMessage(senderID, "Let's Begin!", function() {
       User.findOne({ senderId: senderID })
       .then(function(user){
         if (user){
@@ -551,6 +553,9 @@ function receivedPostback(event) {
         sendTextMessage(senderID, getPrompt(savedUser.currentContext));
       });
     });
+  });
+});
+});
   } else{
     sendTextMessage(senderID, "Postback called");
   }
@@ -667,39 +672,55 @@ function sendTextMessage(recipientId, messageText, cb) {
 function dbQuery(recipientId, user) {
   //If the user skips ALL THE SECTIONS, default to this url: will query all colleges
   if(user.data.major === 'empty' && user.data.location === 'empty' && user.data.minPrice === 'empty' && user.data.minScore === 'empty' && user.data.minSalary === 'empty'){
-    var fieldsUrl = '_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url';
+    fieldsUrl = '_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url';
   }
   //If the user skips MAJOR, its part in the query is omitted
   if(user.data.major === 'empty'){
     var majorUrl = '';
+  }else{
+    var majorUrl = '&2014.academics.program_percentage.' + user.data.major + '__range=0..1';
   }
   //If the user skips LOCATION, its part in the query is omitted
   if(user.data.location === 'empty'){
     var locationUrl = '';
+  }else{
+    var locationUrl = '&school.region_id=' + user.data.location;
   }
   //If the user skips PRICE, its part in the query is omitted
   if(user.data.minPrice === 'empty' ){
     var priceUrl = '';
+  }else{
+    var priceUrl = '&2014.cost.attendance.academic_year__range=' + user.data.minPrice + '..' + user.data.maxPrice;
   }
   //If the user skips SCORES, its part in the query is omitted
+  var scoreUrl;
   if(user.data.minScore === 'empty'){
     var scoreUrl = '';
+  }else{
+    if(user.data.scoreType === "sat"){
+      scoreUrl = '&2014.admissions.sat_scores.average.overall__range=' + user.data.minScore + '..' + user.data.maxScore;
+    }
+    if(user.data.scoreType === "act"){
+      scoreUrl = '&2014.admissions.act_scores.midpoint.cumulative__range=' + user.data.minScore + '..' + user.data.maxScore;
+    }
   }
   //If the user skips SALARY, its part in the query is omitted
   if(user.data.minSalary === 'empty'){
     var salaryUrl = '';
+  }else{
+    var salaryUrl = '&2011.earnings.6_yrs_after_entry.working_not_enrolled.mean_earnings__range=' + user.data.minSalary + '..' + user.data.maxSalary;
   }
-  var majorUrl = '&2014.academics.program_percentage.' + user.data.major + '__range=0..1';
-  var locationUrl = '&school.region_id=' + user.data.location;
-  var priceUrl = '&2014.cost.attendance.academic_year__range=' + user.data.minPrice + '..' + user.data.maxPrice;
-  var scoreUrl;
-  if(user.data.scoreType === "sat"){
-    scoreUrl = '&2014.admissions.sat_scores.average.overall__range=' + user.data.minScore + '..' + user.data.maxScore;
-  }
-  if(user.data.scoreType === "act"){
-    scoreUrl = '&2014.admissions.act_scores.midpoint.cumulative__range=' + user.data.minScore + '..' + user.data.maxScore;
-  }
-  var salaryUrl = '&2011.earnings.6_yrs_after_entry.working_not_enrolled.mean_earnings__range=' + user.data.minSalary + '..' + user.data.maxSalary;
+  // var majorUrl = '&2014.academics.program_percentage.' + user.data.major + '__range=0..1';
+  // var locationUrl = '&school.region_id=' + user.data.location;
+  // var priceUrl = '&2014.cost.attendance.academic_year__range=' + user.data.minPrice + '..' + user.data.maxPrice;
+
+  // if(user.data.scoreType === "sat"){
+  //   scoreUrl = '&2014.admissions.sat_scores.average.overall__range=' + user.data.minScore + '..' + user.data.maxScore;
+  // }
+  // if(user.data.scoreType === "act"){
+  //   scoreUrl = '&2014.admissions.act_scores.midpoint.cumulative__range=' + user.data.minScore + '..' + user.data.maxScore;
+  // }
+  // var salaryUrl = '&2011.earnings.6_yrs_after_entry.working_not_enrolled.mean_earnings__range=' + user.data.minSalary + '..' + user.data.maxSalary;
   var totalUrl = schoolURL + majorUrl + locationUrl + priceUrl + scoreUrl + salaryUrl;
   console.log("Look here for the totalURL", totalUrl);
 
