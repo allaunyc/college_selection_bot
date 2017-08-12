@@ -551,7 +551,7 @@ function receivedPostback(event) {
   // When a postback is called, we'll send a message back to the sender to
   // let them know it was successful
   if(payload === "GET_STARTED_PAYLOAD"){
-    sendTextMessage(senderID, "Hi welcome to Strive! I am here to guide you with your search for the perfect college.", function() {
+    sendTextMessage(senderID, "Hi welcome! I am the Strive 🤖. I'm here to guide you with your search for the perfect college.", function() {
       sendTextMessage(senderID, "If at any point you would like to skip a question, just type 'N/A'.", function() {
       sendTextMessage(senderID, "If you want to start over at any given time during our chat, just type 'Restart'.", function() {
       sendTextMessage(senderID, "Let's Begin! 😃 ", function() {
