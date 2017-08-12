@@ -231,7 +231,8 @@ function verifyRequestSignature(req, res, buf) {
     var expectedHash = crypto.createHmac('sha1', APP_SECRET)
                         .update(buf)
                         .digest('hex');
-    console.log(expectedHash);
+    // console.log(signatureHash);
+    // console.log(expectedHash);
 
     if (signatureHash != expectedHash) {
       throw new Error("Couldn't validate the request signature.");
@@ -471,7 +472,7 @@ function receivedMessage(event) {
         var next = getNextState(foundUser);
         if (next === null) {
           foundUser.completed = true;
-          sendTextMessage(senderID, "Awesome! In addition to the schools you mentioned earlier, let me pull up a list that matches your criteria!", function(){
+          sendTextMessage(senderID, "Awesome! Let me do my magic and pull up a list that matches your criteria!", function(){
             sendTextMessage(senderID, "Keep in mind that the results may vary depending on your specifications.");
             dbQuery(senderID, foundUser);
           });
@@ -822,11 +823,11 @@ function dbQuery(recipientId, user) {
           buttons: [{
             type: "web_url",
             url: dbSchool['school.school_url'],
-            title: "School link"
+            title: "School link🏫"
           }, {
             type: "web_url",
             url: dbSchool['school.price_calculator_url'],
-            title: "Price Calculator"
+            title: " ✏️Price Calculator📏"
           }],
         })
       }
