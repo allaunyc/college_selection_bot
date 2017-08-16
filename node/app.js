@@ -323,16 +323,18 @@ function receivedMessage(event) {
 
       foundUser = temp;
       // if user wants to RESTART the conversation
-      if(messageText === "Restart"){
-        foundUser.data= {};
-        foundUser.completed = false;
-        foundUser.save();
-        var next = getNextState(foundUser);
-        foundUser.currentContext = next;
-        foundUser.save();
-        sendTextMessage(senderID, getPrompt(foundUser.currentContext));
-        return;
-      }
+      // if(messageText === "Restart" || messageText === "restart" || messageText === "Redo" || messageText === "redo"){
+      //   foundUser.data= {};
+      //   foundUser.completed = false;
+      //   foundUser.save();
+      //   var next = getNextState(foundUser);
+      //   foundUser.currentContext = next;
+      //   foundUser.save();
+      //   sendTextMessage(senderID, "It's ok 👌. Let's start over.", function(){
+      //     sendTextMessage(senderID, getPrompt(foundUser.currentContext));
+      //   })
+      //   return;
+      // }
 
 
       var userContext = foundUser.currentContext;
@@ -346,7 +348,15 @@ function receivedMessage(event) {
       if (data.result.action === 'input.unknown' || data.result.actionIncomplete) {
         sendTextMessage(senderID, data.result.fulfillment.speech);
         throw new Error();
+      } else if (data.result.metadata.intentName === 'restart'){
+          foundUser.data= {};
+          foundUser.completed = false;
+          var next = getNextState(foundUser);
+          foundUser.currentContext = next;
+          foundUser.save();
+          return data;
       } else {
+
         console.log("This is the CURRENT CONTEXT:", foundUser.currentContext);
         console.log("Params of CURRENT CONTEXT:", data.result.parameters);
         if (foundUser.currentContext === 'add-major') {
@@ -405,18 +415,14 @@ function receivedMessage(event) {
           //
           // }
           else{
-            if(typeof data.result.parameters['price-min'] === 'object'){
+            if(typeof data.result.parameters['price'] === 'object'){
               console.log('obj min');
-              foundUser.data.minPrice = data.result.parameters['price-min'].amount;
-            } else {
-            foundUser.data.minPrice = data.result.parameters['price-min'].replace(',', '');
-            }
+              foundUser.data.minPrice = 100;
+              foundUser.data.maxPrice = Number(data.result.parameters['price'].amount);
 
-            if(typeof data.result.parameters['price-max'] === 'object'){
-              console.log('obj max');
-              foundUser.data.maxPrice = data.result.parameters['price-max'].amount;
-            }else{
-              foundUser.data.maxPrice = data.result.parameters['price-max'].replace(',', '');
+            } else {
+              foundUser.data.minPrice = 100;
+              foundUser.data.maxPrice = Number(data.result.parameters['price'].replace(',', ''));
             }
           }
            // CORRECT PARAM
@@ -434,14 +440,14 @@ function receivedMessage(event) {
             console.log("SCORE skipped: this should be empty:", foundUser.data.minScore);
           }
           else{
-            if (data.result.parameters['act-min'] && data.result.parameters['act-max']){
-              foundUser.data.minScore = data.result.parameters['act-min'];
-              foundUser.data.maxScore = data.result.parameters['act-max'];
+            if (data.result.parameters['act-score']){
+              foundUser.data.minScore = data.result.parameters['act-score'] - 2;
+              foundUser.data.maxScore = Number(data.result.parameters['act-score']) + 2;
               foundUser.data.scoreType = "act";
 
-            }else if (data.result.parameters['sat-min'] && data.result.parameters['sat-max']){
-              foundUser.data.minScore = data.result.parameters['sat-min'];
-              foundUser.data.maxScore = data.result.parameters['sat-max'];
+            }else if (data.result.parameters['sat-score']){
+              foundUser.data.minScore = data.result.parameters['sat-score'] - 150;
+              foundUser.data.maxScore = Number(data.result.parameters['sat-score']) + 150;
               foundUser.data.scoreType = "sat";
             }
           }
@@ -451,28 +457,24 @@ function receivedMessage(event) {
           if(data.result.metadata.intentName === 'add-salary --not-applicable'){
             foundUser.data.minSalary = -100;
             foundUser.data.maxSalary = -100;
-            console.log("SCORE skipped: this should be empty:", foundUser.data.minSalary);
+            console.log("SCORE skipped: this should be empty:", foundUser.data.salary);
           }
           else{
-            if(typeof data.result.parameters['salary-min'] === 'object'){
-              console.log('obj min');
-              foundUser.data.minSalary = data.result.parameters['salary-min'].amount; //CORRECT PARAM
-            } else {
-              foundUser.data.minSalary = data.result.parameters['salary-min'].replace(',', ''); //CORRECT PARAM
-            }
+           if(typeof data.result.parameters['salary'] === 'object'){
+             console.log('obj min');
+             foundUser.data.minSalary = data.result.parameters['salary'].amount - 25000;
+             foundUser.data.maxSalary = Number(data.result.parameters['salary'].amount) + 25000;
 
-            if(typeof data.result.parameters['salary-max'] === 'object'){
-              console.log('obj max');
-              foundUser.data.maxSalary = data.result.parameters['salary-max'].amount;
-            }else{
-              foundUser.data.maxSalary = data.result.parameters['salary-max'].replace(',', '');
-            }
-          }
+           } else {
+             foundUser.data.minSalary = data.result.parameters['salary'].replace(',', '') - 25000;
+             foundUser.data.maxSalary = Number(data.result.parameters['salary'].replace(',', '')) + 25000;
+           }
+         }
         }
         var next = getNextState(foundUser);
         if (next === null) {
           foundUser.completed = true;
-          sendTextMessage(senderID, "Awesome! Let me do my magic and pull up a list that matches your criteria!", function(){
+          sendTextMessage(senderID, "Awesome! Let me do my magic and pull up a list that matches your criteria!✨🎩", function(){
             sendTextMessage(senderID, "Keep in mind that the results may vary depending on your specifications.");
             dbQuery(senderID, foundUser);
           });
@@ -552,9 +554,9 @@ function receivedPostback(event) {
   // When a postback is called, we'll send a message back to the sender to
   // let them know it was successful
   if(payload === "GET_STARTED_PAYLOAD"){
-    sendTextMessage(senderID, "Hi welcome! I am the Strive 🤖. I'm here to guide you with your search for the perfect college.", function() {
-      sendTextMessage(senderID, "If at any point you would like to skip a question, just type 'N/A'.", function() {
-      sendTextMessage(senderID, "If you want to start over at any given time during our chat, just type 'Restart'.", function() {
+    sendTextMessage(senderID, "Hi welcome! I am the Strive 🤖 . *I'm here to guide you with your search for the perfect college.*", function() {
+      sendTextMessage(senderID, "If at any point you would like to skip a question, just type '*N/A*'.", function() {
+      sendTextMessage(senderID, "If you want to start over at any given time during our chat, just type '*Restart*'.", function() {
       sendTextMessage(senderID, "Let's Begin! 😃 ", function() {
       User.findOne({ senderId: senderID })
       .then(function(user){
@@ -606,11 +608,10 @@ function sendQuery(message, senderID, context) {
     }
   });
 }
-
 // // TODO: randomize prompt
 function getPrompt(state) {
   if (state === 'add-major') {
-    return 'What major are you interested in pursuing?';
+    return '📚 What *major* are you interested in pursuing?';
   } else if (state === 'add-location') {
     return 'Where in the U.S would you like to study (city or state)?';
   } else if (state === 'add-price') {
@@ -705,14 +706,20 @@ function dbQuery(recipientId, user) {
     var majorUrl = '';
     var locationUrl = '&school.region_id=' + user.data.location;
   }else{
-    var majorUrl = '&2014.academics.program_percentage.' + user.data.major + '__range=0..1';
+    var majorUrl = '2014.academics.program_percentage.' + user.data.major + '__range=0..1';
   }
   //If the user skips LOCATION, its part in the query is omitted
   if(user.data.location === 'empty'){
     var locationUrl = '';
+    // if(user.data.major){
+    //   fieldsUrl = '&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url,2011.earnings.6_yrs_after_entry.working_not_enrolled.earnings_percentile.90,2011.earnings.6_yrs_after_entry.working_not_enrolled.earnings_percentile.10';
+    // }
   }else{
     if (user.data.major !== 'empty') {
       var locationUrl = '&school.region_id=' + user.data.location;
+    }else{
+      var locationUrl = 'school.region_id=' + user.data.location;
+      fieldsUrl = '&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url';
     }
   }
   //If the user skips PRICE, its part in the query is omitted
@@ -745,92 +752,57 @@ function dbQuery(recipientId, user) {
     }
   }
   }
-  //If the user skips SALARY, its part in the query is omitted
+  // If the user skips SALARY, its part in the query is omitted
   if(user.data.minSalary === -100){
     var salaryUrl = '';
   }else{
     if (user.data.location === 'empty' && user.data.major === 'empty' && user.data.minPrice === -100 && user.data.minScore === -100) {
       var salaryUrl = '2011.earnings.6_yrs_after_entry.working_not_enrolled.mean_earnings__range=' + user.data.minSalary + '..' + user.data.maxSalary;
     }
+    // var salaryUrl = '&2011.earnings.6_yrs_after_entry.working_not_enrolled.mean_earnings__range=10000..100000';
     var salaryUrl = '&2011.earnings.6_yrs_after_entry.working_not_enrolled.mean_earnings__range=' + user.data.minSalary + '..' + user.data.maxSalary;
   }
-  // var majorUrl = '&2014.academics.program_percentage.' + user.data.major + '__range=0..1';
-  // var locationUrl = '&school.region_id=' + user.data.location;
-  // var priceUrl = '&2014.cost.attendance.academic_year__range=' + user.data.minPrice + '..' + user.data.maxPrice;
 
-  // if(user.data.scoreType === "sat"){
-  //   scoreUrl = '&2014.admissions.sat_scores.average.overall__range=' + user.data.minScore + '..' + user.data.maxScore;
-  // }
-  // if(user.data.scoreType === "act"){
-  //   scoreUrl = '&2014.admissions.act_scores.midpoint.cumulative__range=' + user.data.minScore + '..' + user.data.maxScore;
-  // }
-  // var salaryUrl = '&2011.earnings.6_yrs_after_entry.working_not_enrolled.mean_earnings__range=' + user.data.minSalary + '..' + user.data.maxSalary;
   var totalUrl = schoolURL + majorUrl + locationUrl + priceUrl + scoreUrl + salaryUrl;
-  console.log("Look here for the totalURL", totalUrl);
+  console.log("Look here for the totalURL", totalUrl + fieldsUrl + api_url);
 
-
-  // /////////////
-    // MAKE THREE AXIOS REQUESTS IN ARRAY, THEN DO PROMISE.ALL THAT GIVES US THE THREE OBJECTS as THE RESPONSE
-  //   console.log("The college list represented as an array", user.data.colleges);
-  //   var schoolList = user.data.colleges;
-  //   var item1 = schoolList[0].split(' ').join('%20');
-  //   var item2 = schoolList[1].split(' ').join('%20');
-  //   var item3 = schoolList[2].split(' ').join('%20');
-  //   var completeUrl1 = schoolURL + 'school.name=' +item1 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url' + api_url;
-  //   var completeUrl2 = schoolURL + 'school.name=' +item2 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url' + api_url;
-  //   var completeUrl3 = schoolURL + 'school.name=' +item3 +'&_fields=id,school.name,school.city,school.state,school.school_url,school.price_calculator_url' + api_url;
-  //   var promiseArr = [axios.get(completeUrl1), axios.get(completeUrl2), axios.get(completeUrl3)];
-  //
-  //   Promise.all(promiseArr)
-  //   .then((response1) => {
-  //
-  //   var schoolElements = response1.map(res => res.data.results);
-  //   console.log('schoolElements array of objects', schoolElements[0]);
     var elements = [];
-  //   for (var i = 0; i < 3; i++) {
-  //     for (var j = 0; j < schoolElements[i].length; j++) {
-  //
-  //     var school = schoolElements[i][j];
-  //
-  //     if(school['school.name'].split(' ').join('%20') === item1 || school['school.name'].split(' ').join('%20') === item2 || school['school.name'].split(' ').join('%20') === item3){
-  //
-  //       elements.push({
-  //         title: school['school.name'],
-  //         subtitle: school['school.city'] + ',' + school['school.state'],
-  //         buttons: [{
-  //           type: "web_url",
-  //           url: school['school.school_url'],
-  //           title: "School link"
-  //         }, {
-  //           type: "web_url",
-  //           url: school['school.price_calculator_url'],
-  //           title: "Price Calculator"
-  //         }],
-  //       })
-  //   }
-  //   }
-  // }
+
     axios.get( totalUrl + fieldsUrl + api_url)
     .then(function(response) {
       console.log("response from DB api", response.data);
-      console.log("these should be the three schools the user specified, added to the front of the master college list", elements);
-      for (var i = 0; i < Math.min(8, response.data.results.length); i++) {
-        var dbSchool = response.data.results[i];
-        if (dbSchool['school.price_calculator_url']) {
+      console.log("Look here for the amount of colleges rendered", response.data.results.length);
+      if(response.data.results.length){
+        for (var i = 0; i < response.data.results.length; i++) {
+          var dbSchool = response.data.results[i];
+          if(dbSchool['school.price_calculator_url']){
+          // if(dbSchool['2011.earnings.6_yrs_after_entry.working_not_enrolled.earnings_percentile.10'] && dbSchool['2011.earnings.6_yrs_after_entry.working_not_enrolled.earnings_percentile.90'] && dbSchool['school.price_calculator_url']) {
+            // if(dbSchool['2011.earnings.6_yrs_after_entry.working_not_enrolled.earnings_percentile.10'] < user.data.salary && dbSchool['2011.earnings.6_yrs_after_entry.working_not_enrolled.earnings_percentile.90'] > user.data.salary) {
+              if (elements.length > 8) {
+                break;
+              }
+              elements.push({
+                title: dbSchool['school.name'],
+                subtitle: dbSchool['school.city'] + ',' + dbSchool['school.state'],
+                buttons: [{
+                  type: "web_url",
+                  url: dbSchool['school.school_url'],
+                  title: "School link 🏫"
+                }, {
+                  type: "web_url",
+                  url: dbSchool['school.price_calculator_url'],
+                  title: "Price Calculator 📏"
+                }]
+              })
+            }
+          }
+          // }
+        // }
+      }else{
         elements.push({
-          title: dbSchool['school.name'],
-          subtitle: dbSchool['school.city'] + ',' + dbSchool['school.state'],
-          buttons: [{
-            type: "web_url",
-            url: dbSchool['school.school_url'],
-            title: "School link🏫"
-          }, {
-            type: "web_url",
-            url: dbSchool['school.price_calculator_url'],
-            title: " ✏️Price Calculator📏"
-          }],
+          title: "🚫 Oh no! It seems that no schools matched your preferences.",
+          subtitle: "Type 'Restart' to refine your search!"
         })
-      }
       }
         var messageData = {
             recipient: {
@@ -856,9 +828,6 @@ function dbQuery(recipientId, user) {
   })
 
 }
-  // /////////////
-
-
 
 /*
  * Call the Send API. The message data goes in the body. If successful, we'll
@@ -892,6 +861,7 @@ function callSendAPI(messageData, cb) {
         cb();
       }
     } else {
+      // sendTextMessage(recipientId, "Seems like no results were found based on your criteria 🚫 Type 'Restart' to refine your search again!")
       console.error("Failed calling Send API", response.statusCode, response.statusMessage, body.error);
     }
   });
