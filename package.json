@@ -1,0 +1,29 @@
+{
+  "name": "college_selection_bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/allaunyc/college_selection_bot.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/allaunyc/college_selection_bot/issues"
+  },
+  "homepage": "https://github.com/allaunyc/college_selection_bot#readme",
+  "dependencies": {
+    "axios": "^0.16.2",
+    "body-parser": "^1.17.2",
+    "config": "^1.26.1",
+    "crypto": "0.0.3",
+    "express": "^4.15.3",
+    "https": "^1.0.0",
+    "request": "^2.81.0",
+    "underscore": "^1.8.3"
+  }
+}
